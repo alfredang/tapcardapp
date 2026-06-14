@@ -1,0 +1,23 @@
+# Xcode / build
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# XcodeGen generates this from project.yml — regenerate with `xcodegen generate`
+Tapcard.xcodeproj/
+
+# macOS
+.DS_Store
+
+# Secrets (never commit)
+.env
+*.p8
+
+# Skill-local secrets
+.claude/skills/**/.env
+
+# Browser-automation / submission artifacts
+.playwright-mcp/
+asc-*.png
+*.xcarchive
