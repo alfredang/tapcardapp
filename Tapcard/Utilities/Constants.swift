@@ -10,6 +10,10 @@ enum Constants {
     /// Onboarding endpoint: account-setup + digital-card creation in one call.
     static let onboardPath = "/api/mobile/onboard"
 
+    /// Account-deletion endpoint: deactivates + anonymizes the account so the
+    /// user can no longer sign in (App Store Guideline 5.1.1(v)).
+    static let deleteAccountPath = "/api/mobile/delete-account"
+
     /// Optional shared key sent as `x-tapcard-key`. Leave empty unless the
     /// backend sets `MOBILE_API_KEY`; the header is omitted when blank.
     static let mobileKey = ""

@@ -61,4 +61,25 @@ final class AccountStore {
             UserDefaults.standard.set(data, forKey: cardsKey)
         }
     }
+
+    /// Permanently delete the account on the backend, then sign out locally.
+    /// Required by App Store Guideline 5.1.1(v): the backend deactivates +
+    /// anonymizes the account so the user can no longer sign in.
+    func deleteAccount() async throws {
+        guard let email else { return }
+        let password = KeychainStore.get("password")
+        try await TapcardAPI.deleteAccount(email: email, password: password)
+        signOut()
+    }
+
+    /// Clear all locally-held account state: the email, the saved cards, and the
+    /// Keychain credentials. Returns the app to its "no account yet" state.
+    func signOut() {
+        email = nil
+        cards = []
+        UserDefaults.standard.removeObject(forKey: emailKey)
+        UserDefaults.standard.removeObject(forKey: cardsKey)
+        KeychainStore.delete("email")
+        KeychainStore.delete("password")
+    }
 }

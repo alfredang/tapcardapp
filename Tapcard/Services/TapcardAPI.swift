@@ -55,7 +55,42 @@ enum TapcardAPI {
         }
     }
 
+    /// DELETE the account behind `email` via `/api/mobile/delete-account`. The
+    /// backend deactivates + anonymizes the account (App Store Guideline
+    /// 5.1.1(v)). `password` is sent when the app holds it (Keychain) so the
+    /// backend can verify ownership; it is optional because returning accounts
+    /// are not issued a password on this device.
+    static func deleteAccount(email: String, password: String?) async throws {
+        let url = Constants.apiBaseURL.appendingPathComponent(Constants.deleteAccountPath)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if !Constants.mobileKey.isEmpty {
+            request.setValue(Constants.mobileKey, forHTTPHeaderField: "x-tapcard-key")
+        }
+        request.httpBody = try JSONEncoder().encode(DeleteAccountRequest(email: email, password: password))
+        request.timeoutInterval = 30
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+
+        if !(200...299).contains(http.statusCode) {
+            if let err = try? JSONDecoder().decode(ServerError.self, from: data) {
+                throw APIError.server(err.error)
+            }
+            throw APIError.server("Request failed (HTTP \(http.statusCode)).")
+        }
+    }
+
     private struct ServerError: Codable { let error: String }
+}
+
+/// Wire format for the account-deletion request. `password` is omitted from the
+/// JSON when nil so the backend treats it as "not provided".
+private struct DeleteAccountRequest: Encodable {
+    let email: String
+    let password: String?
 }
 
 /// Wire format for the onboarding request — non-empty fields only, so the
