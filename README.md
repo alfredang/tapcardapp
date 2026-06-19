@@ -14,6 +14,10 @@ Point your camera at a business card. Tapcard reads it on-device with VisionKit/
 sets up your account, and publishes a live digital card with a QR code — backed by the
 [Tapcard](https://tapcard.tertiaryinfotech.com) platform.
 
+<a href="https://apps.apple.com/us/app/tertiary-tapcard/id6780261599">
+  <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" height="48">
+</a>
+
 </div>
 
 ---
@@ -120,3 +124,5 @@ xcodebuild -project Tapcard.xcodeproj -scheme Tapcard \
 
 Companion iOS client for the [Tapcard](https://tapcard.tertiaryinfotech.com) digital
 business-card + CRM platform.
+
+[Download Tapcard on the App Store](https://apps.apple.com/us/app/tertiary-tapcard/id6780261599)
