@@ -6,7 +6,7 @@ struct TapcardApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView()
+            RootView()
                 .environment(account)
                 .tint(Color(hex: Constants.accentHex))
         }

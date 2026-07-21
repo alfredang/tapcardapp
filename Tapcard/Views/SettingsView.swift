@@ -10,6 +10,9 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Account") {
+                if let name = account.userName, !name.isEmpty {
+                    LabeledContent("Name", value: name)
+                }
                 if let email = account.email {
                     LabeledContent("Signed in as", value: email)
                 } else {
@@ -17,6 +20,16 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Link("Manage cards & leads on the web", destination: Constants.apiBaseURL)
+            }
+
+            if account.isSignedIn {
+                Section {
+                    Button("Sign Out", role: .destructive) {
+                        account.signOut()
+                    }
+                } footer: {
+                    Text("Signs out on this device. Your cards, contacts and planner stay in your account.")
+                }
             }
 
             if account.email != nil {

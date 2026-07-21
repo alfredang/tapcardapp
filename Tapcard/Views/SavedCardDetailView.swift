@@ -50,6 +50,15 @@ struct SavedCardDetailView: View {
                         .padding(.vertical, 12)
                 }
                 .buttonStyle(.bordered)
+
+                NavigationLink {
+                    ShareToolsView(card: card)
+                } label: {
+                    Label("Email signature & virtual background", systemImage: "sparkles")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.bordered)
             }
             .padding()
         }
