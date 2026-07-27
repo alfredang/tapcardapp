@@ -16,6 +16,11 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
 
+packages:
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: "8.0.0"
+
 targets:
   Tapcard:
     type: application
@@ -23,6 +28,10 @@ targets:
     deploymentTarget: "18.0"
     sources:
       - path: Tapcard
+    dependencies:
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - sdk: AuthenticationServices.framework
     info:
       path: Tapcard/Info.plist
       properties:
@@ -40,9 +49,25 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: "Allow camera access to scan business cards."
         NSPhotoLibraryUsageDescription: "Allow photo access to import a business card image."
+        # Google sign-in: the SDK reads the client ID from here, and the reversed
+        # client ID is the URL scheme it uses to receive the callback. Both are
+        # public identifiers, not secrets. Keep in sync with GoogleAuthService.
+        GIDClientID: "$(GOOGLE_IOS_CLIENT_ID)"
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - "$(GOOGLE_IOS_URL_SCHEME)"
+    entitlements:
+      path: Tapcard/Tapcard.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tertiaryinfotech.tapcard
+        # Google's iOS OAuth client for com.tertiaryinfotech.tapcard. Public
+        # identifiers (they ship inside the app binary), so they live here rather
+        # than in .env. The URL scheme is the client ID's reversed form.
+        GOOGLE_IOS_CLIENT_ID: ""
+        GOOGLE_IOS_URL_SCHEME: ""
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor

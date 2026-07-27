@@ -19,6 +19,17 @@ enum DemoSupport {
         ProcessInfo.processInfo.environment["TAPCARD_DEMO_FAKE_SUBMIT"] == "1"
     }
 
+    /// Opens straight into the log-in / sign-up form, skipping the welcome
+    /// screen — used to capture the auth screen (incl. social sign-on).
+    /// Set to "logIn" or "signUp".
+    static var startInAuth: AuthView.Mode? {
+        switch ProcessInfo.processInfo.environment["TAPCARD_DEMO_AUTH"] {
+        case "logIn": .logIn
+        case "signUp": .signUp
+        default: nil
+        }
+    }
+
     static var demoCard: BusinessCard {
         var c = BusinessCard()
         c.fullName = "Jordan Avery"

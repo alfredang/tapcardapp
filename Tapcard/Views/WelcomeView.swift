@@ -69,6 +69,10 @@ struct WelcomeView: View {
             .navigationDestination(item: $authMode) { mode in
                 AuthView(mode: mode)
             }
+            .onAppear {
+                // Screenshot hook — no effect in a normal launch.
+                if authMode == nil, let demo = DemoSupport.startInAuth { authMode = demo }
+            }
         }
     }
 

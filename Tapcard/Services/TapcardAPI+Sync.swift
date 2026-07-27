@@ -88,6 +88,26 @@ extension TapcardAPI {
         return try authResult(from: data)
     }
 
+    /// Exchanges a Google **ID token** (from the native account picker) for a
+    /// Tapcard bearer token. The backend verifies the token with Google, then
+    /// finds or creates the account and returns the same shape as login/OTP.
+    static func googleSignIn(idToken: String, name: String?) async throws -> AuthResult {
+        var body: [String: Any] = ["idToken": idToken]
+        if let name, !name.trimmed.isEmpty { body["name"] = name.trimmed }
+        let data = try await request("POST", "/api/mobile/oauth/google", body: body)
+        return try authResult(from: data)
+    }
+
+    /// Exchanges an Apple **identity token** for a Tapcard bearer token. `name`
+    /// is only ever available on the user's first authorization, so it is sent
+    /// when present and omitted thereafter.
+    static func appleSignIn(identityToken: String, name: String?) async throws -> AuthResult {
+        var body: [String: Any] = ["identityToken": identityToken]
+        if let name, !name.trimmed.isEmpty { body["name"] = name.trimmed }
+        let data = try await request("POST", "/api/mobile/oauth/apple", body: body)
+        return try authResult(from: data)
+    }
+
     /// Permanently deletes the signed-in account (token proves ownership).
     static func deleteAccount(token: String, email: String) async throws {
         _ = try await request("POST", "/api/mobile/delete-account", token: token,

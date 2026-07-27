@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 /// Sign-up / log-in form — mirrors the Android auth screen. "Create account"
 /// takes name + email + password. "Log in" offers two ways: email + password,
@@ -12,6 +13,7 @@ struct AuthView: View {
     let mode: Mode
 
     @Environment(AccountStore.self) private var account
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var name = ""
     @State private var email = ""
@@ -47,6 +49,14 @@ struct AuthView: View {
                 }
 
                 primaryButton
+
+                // Social sign-on sits under the form, mirroring the website and
+                // the Android app — but not on the code-entry step, where the
+                // user is already mid-way through an email login.
+                if !(mode == .logIn && useCode && codeSent) {
+                    orDivider
+                    socialButtons
+                }
             }
             .padding(24)
         }
@@ -166,6 +176,103 @@ struct AuthView: View {
         guard e.isValidEmail else { return fail("Enter a valid email address.") }
         guard !password.isEmpty else { return fail("Enter your password.") }
         run { try await TapcardAPI.login(email: e, password: password) }
+    }
+
+    // ─── Social sign-on ─────────────────────────────────────────────────────
+
+    private var orDivider: some View {
+        HStack(spacing: 12) {
+            Rectangle().fill(.separator).frame(height: 1)
+            Text("or").font(.footnote).foregroundStyle(.secondary)
+            Rectangle().fill(.separator).frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var socialButtons: some View {
+        VStack(spacing: 12) {
+            // Sign in with Apple is required alongside any third-party social
+            // login (App Store Guideline 4.8), and by convention leads.
+            SignInWithAppleButton(mode == .signUp ? .signUp : .signIn) { request in
+                request.requestedScopes = [.fullName, .email]
+            } onCompletion: { _ in
+                // Handled by AppleAuthService so the token exchange, error
+                // mapping and cancellation behaviour match the Google path.
+            }
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(height: 50)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .allowsHitTesting(false)
+            .overlay {
+                Button { social(.apple) } label: {
+                    Color.clear.contentShape(Rectangle())
+                }
+                .disabled(isBusy)
+            }
+
+            if GoogleAuthService.isConfigured {
+                Button { social(.google) } label: {
+                    HStack(spacing: 10) {
+                        GoogleGlyph().frame(width: 18, height: 18)
+                        Text("Continue with Google")
+                            .font(.headline)
+                            .foregroundStyle(Color.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color(.secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(.separator, lineWidth: 1)
+                    )
+                }
+                .disabled(isBusy)
+            }
+        }
+    }
+
+    /// Which social provider a sign-in run belongs to — decides both the picker
+    /// to present and the endpoint that exchanges its token.
+    private enum SocialProvider {
+        case apple, google
+
+        @MainActor
+        func authenticate() async -> SocialSignInOutcome {
+            switch self {
+            case .apple: await AppleAuthService.signIn()
+            case .google: await GoogleAuthService.signIn()
+            }
+        }
+
+        func exchange(token: String, name: String?) async throws -> AuthResult {
+            switch self {
+            case .apple: try await TapcardAPI.appleSignIn(identityToken: token, name: name)
+            case .google: try await TapcardAPI.googleSignIn(idToken: token, name: name)
+            }
+        }
+    }
+
+    /// Drives a social provider then exchanges its token for a session. A
+    /// cancelled picker leaves the form untouched.
+    private func social(_ provider: SocialProvider) {
+        errorMessage = nil
+        isBusy = true
+        Task {
+            switch await provider.authenticate() {
+            case .cancelled:
+                break
+            case .failure(let message):
+                errorMessage = message
+            case .success(let token, let name):
+                do {
+                    account.startSession(try await provider.exchange(token: token, name: name))
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            isBusy = false
+        }
     }
 
     private func fail(_ message: String) {
