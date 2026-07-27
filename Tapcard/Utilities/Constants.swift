@@ -18,6 +18,12 @@ enum Constants {
     /// backend sets `MOBILE_API_KEY`; the header is omitted when blank.
     static let mobileKey = ""
 
+    /// Brand palette, matching tapcard.tertiaryinfotech.com: a violet primary
+    /// with a coral and a teal secondary used for gradients and highlights.
     static let accentHex = "#7C5CFF"
+    static let accentDeepHex = "#5B3FE0"
+    static let coralHex = "#FA6B55"
+    static let tealHex = "#16B5A3"
+
     static let supportURL = URL(string: "https://www.tertiaryinfotech.com")!
 }

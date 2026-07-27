@@ -114,7 +114,8 @@ private struct VirtualBackgroundCanvas: View {
         GeometryReader { geo in
             let unit = geo.size.height / 1080
             ZStack {
-                LinearGradient(colors: [Color(hex: "#101223"), Color(hex: "#232853")],
+                LinearGradient(colors: [Color(hex: Constants.accentDeepHex),
+                                        Color(hex: Constants.coralHex)],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
                 Circle()
                     .fill(accent.opacity(0.25))

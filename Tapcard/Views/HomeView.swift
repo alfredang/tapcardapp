@@ -47,7 +47,7 @@ struct HomeView: View {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: [accent, accent.opacity(0.7)],
+                            colors: [accent, Color(hex: Constants.coralHex)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )

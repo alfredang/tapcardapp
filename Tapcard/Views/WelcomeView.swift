@@ -14,7 +14,7 @@ struct WelcomeView: View {
                 Spacer()
                 ZStack {
                     RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .fill(LinearGradient(colors: [accent, accent.opacity(0.65)],
+                        .fill(LinearGradient(colors: [accent, Color(hex: Constants.coralHex)],
                                              startPoint: .topLeading, endPoint: .bottomTrailing))
                         .frame(width: 120, height: 120)
                     Image(systemName: "person.crop.rectangle.fill")
