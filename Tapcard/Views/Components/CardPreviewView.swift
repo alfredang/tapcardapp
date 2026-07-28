@@ -391,11 +391,16 @@ struct CardPreviewView: View {
                             _ keyPath: WritableKeyPath<BusinessCard, String>,
                             keyboard: UIKeyboardType) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundStyle(theme.accent)
-                .frame(width: 30, height: 30)
-                .background(theme.chip, in: Circle())
+            if keyPath == \.whatsapp {
+                WhatsAppGlyph()
+                    .frame(width: 30, height: 30)
+            } else {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 30, height: 30)
+                    .background(theme.chip, in: Circle())
+            }
             inlineText(placeholder, keyPath,
                        font: .footnote, color: theme.textColor,
                        keyboard: keyboard)
@@ -606,5 +611,44 @@ struct CardFormFields: View {
             }
         }
         .id(focusField)
+    }
+}
+
+
+// ─── WhatsApp brand glyph ───────────────────────────────────────────────────
+
+/// A drawn WhatsApp mark — green speech bubble with a tail and a white
+/// handset — since SF Symbols carries no brand icons.
+struct WhatsAppGlyph: View {
+    var body: some View {
+        GeometryReader { geo in
+            let s = min(geo.size.width, geo.size.height)
+            ZStack {
+                WhatsAppBubble()
+                    .fill(Color(hex: "#25D366"))
+                Image(systemName: "phone.fill")
+                    .font(.system(size: s * 0.40, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .offset(x: s * 0.01, y: -s * 0.02)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .accessibilityLabel("WhatsApp")
+    }
+}
+
+/// Speech-bubble circle with the characteristic bottom-left tail.
+private struct WhatsAppBubble: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let s = min(rect.width, rect.height)
+        let bubble = CGRect(x: rect.midX - s / 2, y: rect.midY - s / 2, width: s, height: s)
+        path.addEllipse(in: bubble.insetBy(dx: s * 0.02, dy: s * 0.02))
+        // Tail: small wedge poking out at the lower-left.
+        path.move(to: CGPoint(x: bubble.minX + s * 0.10, y: bubble.maxY - s * 0.30))
+        path.addLine(to: CGPoint(x: bubble.minX + s * 0.02, y: bubble.maxY - s * 0.02))
+        path.addLine(to: CGPoint(x: bubble.minX + s * 0.34, y: bubble.maxY - s * 0.10))
+        path.closeSubpath()
+        return path
     }
 }
