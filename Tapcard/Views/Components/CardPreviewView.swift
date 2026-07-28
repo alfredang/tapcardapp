@@ -365,18 +365,54 @@ struct CardPreviewView: View {
     private func row(_ icon: String, _ placeholder: String,
                      _ keyPath: WritableKeyPath<BusinessCard, String>,
                      keyboard: UIKeyboardType = .default) -> some View {
-        if isEditing || !card[keyPath: keyPath].trimmed.isEmpty {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(theme.accent)
-                    .frame(width: 30, height: 30)
-                    .background(theme.chip, in: Circle())
-                inlineText(placeholder, keyPath,
-                           font: .footnote, color: theme.textColor,
-                           keyboard: keyboard)
-                    .lineLimit(2)
+        if isEditing {
+            rowContent(icon, placeholder, keyPath, keyboard: keyboard)
+        } else if !card[keyPath: keyPath].trimmed.isEmpty {
+            // Read-only rows act: website opens the default browser, email
+            // composes, phone numbers dial.
+            if let url = actionURL(for: keyPath) {
+                Button {
+                    openURL(url)
+                } label: {
+                    rowContent(icon, placeholder, keyPath, keyboard: keyboard)
+                }
+                .buttonStyle(.plain)
+            } else {
+                rowContent(icon, placeholder, keyPath, keyboard: keyboard)
             }
+        }
+    }
+
+    private func rowContent(_ icon: String, _ placeholder: String,
+                            _ keyPath: WritableKeyPath<BusinessCard, String>,
+                            keyboard: UIKeyboardType) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(theme.accent)
+                .frame(width: 30, height: 30)
+                .background(theme.chip, in: Circle())
+            inlineText(placeholder, keyPath,
+                       font: .footnote, color: theme.textColor,
+                       keyboard: keyboard)
+                .lineLimit(2)
+        }
+    }
+
+    /// The tap action for a read-only row, when it has one.
+    private func actionURL(for keyPath: WritableKeyPath<BusinessCard, String>) -> URL? {
+        let value = card[keyPath: keyPath].trimmed
+        switch keyPath {
+        case \.website:
+            let raw = value.lowercased().hasPrefix("http") ? value : "https://" + value
+            return URL(string: raw)
+        case \.email:
+            return URL(string: "mailto:\(value)")
+        case \.mobile, \.officePhone:
+            let digits = value.filter { $0.isNumber || $0 == "+" }
+            return digits.isEmpty ? nil : URL(string: "tel:\(digits)")
+        default:
+            return nil
         }
     }
 
