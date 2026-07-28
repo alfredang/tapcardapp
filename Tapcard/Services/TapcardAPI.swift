@@ -99,9 +99,11 @@ private struct OnboardRequest: Encodable {
     let fullName: String
     let email: String
     let jobTitle: String?
+    let tagline: String?
     let company: String?
     let mobile: String?
     let officePhone: String?
+    let whatsapp: String?
     let website: String?
     let address: String?
     let bio: String?
@@ -122,9 +124,11 @@ private struct OnboardRequest: Encodable {
         fullName = card.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
         email = card.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         jobTitle = opt(card.jobTitle)
+        tagline = opt(card.tagline)
         company = opt(card.company)
         mobile = opt(card.mobile)
         officePhone = opt(card.officePhone)
+        whatsapp = opt(card.whatsapp)
         website = opt(card.website)
         address = opt(card.composedAddress)
         bio = opt(card.bio)

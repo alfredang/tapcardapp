@@ -121,10 +121,12 @@ extension TapcardAPI {
         var slug: String?
         var fullName: String = ""
         var jobTitle: String?
+        var tagline: String?
         var company: String?
         var email: String?
         var mobile: String?
         var officePhone: String?
+        var whatsapp: String?
         var website: String?
         var address: String?
         var bio: String?
@@ -147,10 +149,12 @@ extension TapcardAPI {
             var card = BusinessCard()
             card.fullName = fullName
             card.jobTitle = jobTitle ?? ""
+            card.tagline = tagline ?? ""
             card.company = company ?? ""
             card.email = email ?? ""
             card.mobile = mobile ?? ""
             card.officePhone = officePhone ?? ""
+            card.whatsapp = whatsapp ?? ""
             card.website = website ?? ""
             card.address = address ?? ""
             card.bio = bio ?? ""
@@ -191,10 +195,12 @@ extension TapcardAPI {
         let body: [String: Any] = [
             "fullName": card.fullName.trimmed,
             "jobTitle": card.jobTitle.trimmed,
+            "tagline": card.tagline.trimmed,
             "company": card.company.trimmed,
             "email": card.email.trimmed.lowercased(),
             "mobile": card.mobile.trimmed,
             "officePhone": card.officePhone.trimmed,
+            "whatsapp": card.whatsapp.trimmed,
             "website": website,
             "address": card.composedAddress,
             "bio": String(card.bio.trimmed.prefix(1000)),

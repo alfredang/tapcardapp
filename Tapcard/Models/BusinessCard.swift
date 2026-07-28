@@ -61,10 +61,13 @@ enum CardTheme: String, CaseIterable, Identifiable, Codable {
 struct BusinessCard: Codable, Equatable, Hashable {
     var fullName: String = ""
     var jobTitle: String = ""
+    /// Short motto shown in italics under the job title.
+    var tagline: String = ""
     var company: String = ""
     var email: String = ""
     var mobile: String = ""
     var officePhone: String = ""
+    var whatsapp: String = ""
     var website: String = ""
     /// The single address string the backend stores; composed from the
     /// structured parts below when they're filled in.
@@ -129,10 +132,12 @@ struct BusinessCard: Codable, Equatable, Hashable {
         func str(_ key: CodingKeys) -> String { (try? c.decode(String.self, forKey: key)) ?? "" }
         fullName = str(.fullName)
         jobTitle = str(.jobTitle)
+        tagline = str(.tagline)
         company = str(.company)
         email = str(.email)
         mobile = str(.mobile)
         officePhone = str(.officePhone)
+        whatsapp = str(.whatsapp)
         website = str(.website)
         address = str(.address)
         bio = str(.bio)

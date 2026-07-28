@@ -31,8 +31,9 @@ extension CardTheme {
 /// A field on the card — used to jump from a tapped preview element straight
 /// to its form field.
 enum CardField: Hashable {
-    case fullName, jobTitle, company, email, mobile, officePhone, website,
-         addressLine1, addressLine2, zipcode, bio, linkedin, facebook, instagram
+    case fullName, jobTitle, tagline, company, email, mobile, officePhone,
+         whatsapp, website, addressLine1, addressLine2, zipcode, bio,
+         linkedin, facebook, instagram
 }
 
 /// The digital card rendered natively, Blinq-style — a pure function of
@@ -118,6 +119,8 @@ struct CardPreviewView: View {
                            font: .title3.bold(), color: theme.textColor)
                 inlineText("Job title", \.jobTitle,
                            font: .subheadline, color: theme.subtextColor)
+                inlineText("Tagline", \.tagline,
+                           font: .footnote.italic(), color: theme.accent)
                 bioText
             }
             .padding(.horizontal, 18)
@@ -128,6 +131,7 @@ struct CardPreviewView: View {
                 row("building.2.fill", "Company", \.company)
                 row("iphone", "Mobile", \.mobile, keyboard: .phonePad)
                 row("phone.fill", "Landline", \.officePhone, keyboard: .phonePad)
+                row("message.fill", "WhatsApp", \.whatsapp, keyboard: .phonePad)
                 row("envelope.fill", "Email", \.email, keyboard: .emailAddress)
                 row("globe", "Website", \.website, keyboard: .URL)
                 addressBlock
@@ -411,6 +415,10 @@ struct CardPreviewView: View {
         case \.mobile, \.officePhone:
             let digits = value.filter { $0.isNumber || $0 == "+" }
             return digits.isEmpty ? nil : URL(string: "tel:\(digits)")
+        case \.whatsapp:
+            // wa.me wants digits only, no + or spaces.
+            let digits = value.filter(\.isNumber)
+            return digits.isEmpty ? nil : URL(string: "https://wa.me/\(digits)")
         default:
             return nil
         }
@@ -504,6 +512,7 @@ struct CardFormFields: View {
         Section("Identity") {
             field("Full name", text: $card.fullName, icon: "person", focus: .fullName, required: true)
             field("Job title", text: $card.jobTitle, icon: "briefcase", focus: .jobTitle)
+            field("Tagline", text: $card.tagline, icon: "quote.opening", focus: .tagline)
             field("Company", text: $card.company, icon: "building.2", focus: .company)
         }
 
@@ -512,6 +521,7 @@ struct CardFormFields: View {
                   keyboard: .emailAddress, required: true)
             field("Mobile", text: $card.mobile, icon: "iphone", focus: .mobile, keyboard: .phonePad)
             field("Landline", text: $card.officePhone, icon: "phone", focus: .officePhone, keyboard: .phonePad)
+            field("WhatsApp", text: $card.whatsapp, icon: "message", focus: .whatsapp, keyboard: .phonePad)
             field("Website", text: $card.website, icon: "globe", focus: .website, keyboard: .URL)
             field("Address line 1", text: $card.addressLine1, icon: "mappin.and.ellipse", focus: .addressLine1)
             field("Address line 2", text: $card.addressLine2, icon: "mappin", focus: .addressLine2)
