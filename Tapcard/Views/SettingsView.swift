@@ -19,7 +19,6 @@ struct SettingsView: View {
                     Text("No account yet — scan a card to create one.")
                         .foregroundStyle(.secondary)
                 }
-                Link("Manage cards & leads on the web", destination: Constants.apiBaseURL)
             }
 
             if account.isSignedIn {

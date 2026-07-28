@@ -42,7 +42,7 @@ struct ReviewCardView: View {
                 }
                 .disabled(!model.card.isValid)
             } footer: {
-                Text("Your account is created automatically with this email, and the card is published to tapcard.tertiaryinfotech.com.")
+                Text("Your account is created automatically with this email, and your card goes live instantly — share it by QR or link.")
             }
         }
         .scrollContentBackground(.hidden)
