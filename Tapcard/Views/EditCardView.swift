@@ -35,6 +35,14 @@ struct EditCardView: View {
                 CardPreviewView(editing: $card)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
+
+                Button {
+                    focusedField = .fullName
+                } label: {
+                    Label("Edit fields", systemImage: "pencil")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
             } header: {
                 Text("Your card — tap any line to edit")
             } footer: {

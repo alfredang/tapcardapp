@@ -61,11 +61,19 @@ final class AccountStore {
         Task { await refreshServerCards() }
     }
 
+    /// Bumped by every local mutation (delete/publish); a refresh whose fetch
+    /// started before the mutation is stale and must not overwrite the list —
+    /// otherwise a deleted card "comes back" when the old response lands.
+    private var cardsGeneration = 0
+
     /// Pull the account's published cards from the backend so Home lists them
     /// on any device, not just the one that created them.
     func refreshServerCards() async {
         guard let token else { return }
+        cardsGeneration += 1
+        let generation = cardsGeneration
         guard let server = try? await TapcardAPI.fetchCards(token: token) else { return }
+        guard generation == cardsGeneration else { return } // superseded mid-flight
         let mapped = server.map { c in
             SavedCard(id: c.id, fullName: c.fullName, company: c.company ?? "",
                       slug: c.slug ?? "", url: c.publicURL, createdAt: Date(),
@@ -92,12 +100,16 @@ final class AccountStore {
                 return error.localizedDescription
             }
         }
+        cardsGeneration += 1   // invalidate any in-flight refresh
         cards.removeAll { $0.id == card.id }
         persist()
+        // Converge with the server's post-delete state.
+        Task { await refreshServerCards() }
         return nil
     }
 
     func record(_ response: OnboardResponse, card: BusinessCard) {
+        cardsGeneration += 1   // invalidate any in-flight refresh
         email = response.email
         UserDefaults.standard.set(response.email, forKey: emailKey)
         KeychainStore.set(response.email, for: "email")

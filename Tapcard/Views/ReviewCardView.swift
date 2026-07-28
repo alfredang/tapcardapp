@@ -22,12 +22,22 @@ struct ReviewCardView: View {
                 CardPreviewView(editing: $model.card)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
+
+                // Explicit entry point for editing — the inline fields above
+                // work too, but a labelled button is unmissable.
+                Button {
+                    focusedField = .fullName
+                } label: {
+                    Label("Edit fields", systemImage: "pencil")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
             } header: {
                 Text("Your card — tap any line to edit")
             } footer: {
                 Text(model.parsedWithAI
-                     ? "Fields extracted with Apple Intelligence — edit directly on the card."
-                     : "Fields extracted on-device — edit directly on the card.")
+                     ? "Fields extracted with Apple Intelligence — edit on the card or in the fields below."
+                     : "Fields extracted on-device — edit on the card or in the fields below.")
             }
 
             CardFormFields(card: $model.card, focus: $focusedField)
