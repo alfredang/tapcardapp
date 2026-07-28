@@ -1,77 +1,98 @@
 import SwiftUI
 
-/// Detail view for a previously created card — re-shows the QR, link and share.
+/// A published card, rendered natively (no browser round-trip): live preview,
+/// edit, QR and share — mobile-first, with the web page as the share target.
 struct SavedCardDetailView: View {
+    @Environment(AccountStore.self) private var account
     let card: SavedCard
     @State private var showShare = false
+    @State private var showQR = false
 
-    private var accent: Color { Color(hex: Constants.accentHex) }
+    /// Always render the freshest copy — edits refresh the store while this
+    /// view stays on the stack.
+    private var current: SavedCard {
+        account.cards.first(where: { $0.id == card.id }) ?? card
+    }
+
+    private var details: BusinessCard {
+        current.details ?? {
+            var c = BusinessCard()
+            c.fullName = current.fullName
+            c.company = current.company
+            return c
+        }()
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                VStack(spacing: 4) {
-                    Text(card.fullName).font(.title2.bold())
-                    if !card.company.isEmpty {
-                        Text(card.company).foregroundStyle(.secondary)
+                CardPreviewView(card: details)
+
+                // Primary actions — edit is first-class: this is the app the
+                // card comes back to.
+                HStack(spacing: 12) {
+                    NavigationLink {
+                        EditCardView(saved: current)
+                    } label: {
+                        actionLabel("Edit", icon: "pencil")
                     }
-                }
-                .padding(.top)
+                    .buttonStyle(OutlineButtonStyle())
 
-                if let qr = QRGenerator.image(for: card.url) {
-                    Image(uiImage: qr)
-                        .interpolation(.none)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 220, height: 220)
-                        .padding(24)
-                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                }
+                    Button {
+                        showQR = true
+                    } label: {
+                        actionLabel("QR", icon: "qrcode")
+                    }
+                    .buttonStyle(OutlineButtonStyle())
 
-                Text(card.url)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-
-                Button {
-                    showShare = true
-                } label: {
-                    Label("Share card", systemImage: "square.and.arrow.up")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                    Button {
+                        showShare = true
+                    } label: {
+                        actionLabel("Share", icon: "square.and.arrow.up")
+                    }
+                    .buttonStyle(GradientButtonStyle())
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
-
-                Link(destination: URL(string: card.url)!) {
-                    Label("Open public card", systemImage: "safari")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .buttonStyle(.bordered)
 
                 NavigationLink {
-                    ShareToolsView(card: card)
+                    ShareToolsView(card: current)
                 } label: {
                     Label("Email signature & virtual background", systemImage: "sparkles")
+                        .font(.subheadline.weight(.medium))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                 }
                 .buttonStyle(.bordered)
+
+                // The public link exists for sharing; viewing stays native.
+                Text(current.url.replacingOccurrences(of: "https://", with: ""))
+                    .font(.footnote)
+                    .foregroundStyle(Theme.mutedForeground)
+                    .textSelection(.enabled)
             }
             .padding()
         }
-        .navigationTitle("Card")
+        .background(Theme.background)
+        .navigationTitle("My card")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showShare) {
             ShareSheet(items: shareItems)
         }
+        .fullScreenCover(isPresented: $showQR) {
+            QRShareView(card: current)
+        }
+    }
+
+    private func actionLabel(_ title: String, icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+            Text(title)
+        }
+        .font(.subheadline.weight(.semibold))
     }
 
     private var shareItems: [Any] {
-        var items: [Any] = [URL(string: card.url) ?? card.url as Any]
-        if let qr = QRGenerator.image(for: card.url) { items.append(qr) }
+        var items: [Any] = [URL(string: current.url) ?? current.url as Any]
+        if let qr = QRGenerator.image(for: current.url) { items.append(qr) }
         return items
     }
 }

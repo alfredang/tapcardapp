@@ -10,6 +10,9 @@ struct SavedCard: Codable, Identifiable, Equatable {
     var slug: String
     var url: String
     var createdAt: Date
+    /// Full field set + theme, for the native preview and in-app editor.
+    /// Optional so cards persisted by older builds keep decoding.
+    var details: BusinessCard?
 }
 
 /// App-level state: the signed-in account email and the cards created on this
@@ -65,7 +68,8 @@ final class AccountStore {
         guard let server = try? await TapcardAPI.fetchCards(token: token) else { return }
         let mapped = server.map { c in
             SavedCard(id: c.id, fullName: c.fullName, company: c.company ?? "",
-                      slug: c.slug ?? "", url: c.publicURL, createdAt: Date())
+                      slug: c.slug ?? "", url: c.publicURL, createdAt: Date(),
+                      details: c.asBusinessCard)
         }
         // Server is the source of truth when signed in; keep local-only cards
         // (created before sign-in) that the server doesn't know about.
@@ -88,7 +92,8 @@ final class AccountStore {
             company: card.company.trimmingCharacters(in: .whitespacesAndNewlines),
             slug: response.card.slug,
             url: response.card.url,
-            createdAt: Date()
+            createdAt: Date(),
+            details: card
         )
         cards.insert(saved, at: 0)
         persist()

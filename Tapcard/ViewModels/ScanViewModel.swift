@@ -23,6 +23,9 @@ final class ScanViewModel {
     var stage: Stage = .idle
     var card = BusinessCard()
     var errorMessage: String?
+    /// Whether the Apple Intelligence pass ran on the last scan (vs the
+    /// heuristic-only parse) — surfaced in the review screen.
+    var parsedWithAI = false
 
     init() {
         // Screenshot/demo seam — inert unless the launch env var is set.
@@ -50,6 +53,7 @@ final class ScanViewModel {
         do {
             let lines = try await OCRService.recognizeLines(in: cgImage)
             var parsed = ContactParser.parse(lines: lines)
+            parsedWithAI = false
             // Apple Intelligence pass: the on-device model reads the card as a
             // whole and fixes what the line heuristics get wrong (person vs
             // company name, address vs slogan). Best-effort — any failure
@@ -57,6 +61,7 @@ final class ScanViewModel {
             if #available(iOS 26.0, *), AIContactExtractor.isAvailable {
                 if let ai = try? await AIContactExtractor.extract(fromLines: lines) {
                     parsed.refine(with: ai)
+                    parsedWithAI = true
                 }
             }
             card = parsed

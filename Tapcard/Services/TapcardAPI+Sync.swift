@@ -124,12 +124,35 @@ extension TapcardAPI {
         var company: String?
         var email: String?
         var mobile: String?
+        var officePhone: String?
         var website: String?
+        var address: String?
+        var linkedin: String?
+        var twitter: String?
         var theme: String?
         var accentColor: String?
 
         var publicURL: String {
             "\(Constants.apiBaseURL.absoluteString)/c/\(slug ?? id)"
+        }
+
+        /// The server card as the app's editable model — powers the native
+        /// preview and the in-app editor.
+        var asBusinessCard: BusinessCard {
+            var card = BusinessCard()
+            card.fullName = fullName
+            card.jobTitle = jobTitle ?? ""
+            card.company = company ?? ""
+            card.email = email ?? ""
+            card.mobile = mobile ?? ""
+            card.officePhone = officePhone ?? ""
+            card.website = website ?? ""
+            card.address = address ?? ""
+            card.linkedin = linkedin ?? ""
+            card.twitter = twitter ?? ""
+            card.theme = CardTheme(rawValue: theme ?? "") ?? .modern
+            card.accentColor = accentColor ?? Constants.accentHex
+            return card
         }
     }
 
@@ -138,6 +161,32 @@ extension TapcardAPI {
     static func fetchCards(token: String) async throws -> [ServerCard] {
         let data = try await request("GET", "/api/mobile/cards", token: token)
         return try decode(CardsWire.self, from: data).cards ?? []
+    }
+
+    /// Update a published card in place (PATCH). Empty strings are sent
+    /// deliberately — that's how a field is cleared on the server.
+    static func updateCard(token: String, id: String, card: BusinessCard) async throws {
+        // The backend validates website with a strict URL check — prefix bare
+        // domains ("tertiaryinfotech.com") so a hand-typed edit doesn't 400.
+        var website = card.website.trimmed
+        if !website.isEmpty, !website.lowercased().hasPrefix("http") {
+            website = "https://" + website
+        }
+        let body: [String: Any] = [
+            "fullName": card.fullName.trimmed,
+            "jobTitle": card.jobTitle.trimmed,
+            "company": card.company.trimmed,
+            "email": card.email.trimmed.lowercased(),
+            "mobile": card.mobile.trimmed,
+            "officePhone": card.officePhone.trimmed,
+            "website": website,
+            "address": card.address.trimmed,
+            "linkedin": card.linkedin.trimmed,
+            "twitter": card.twitter.trimmed,
+            "theme": card.theme.rawValue,
+            "accentColor": card.accentColor,
+        ]
+        _ = try await request("PATCH", "/api/mobile/cards/\(id)", token: token, body: body)
     }
 
     // ─── Contacts sync ──────────────────────────────────────────────────────

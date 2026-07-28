@@ -42,10 +42,14 @@ enum AIContactExtractor {
             You extract contact fields from business-card text produced by OCR. \
             The lines may be out of order and mixed with slogans, certification \
             lists and other noise. Distinguish carefully between the PERSON \
-            (a human name, often near a job title or honorific like Dr.) and \
-            the COMPANY (a brand, often the largest text or part of a logo). \
-            Copy values verbatim from the text; leave a field empty when the \
-            card does not contain it.
+            (a human name, often marked by an honorific like Dr. or followed \
+            by credentials) and the COMPANY (a brand, often the logo text). \
+            A brand name like "Tertiary Infotech" is NEVER the person. \
+            Example: the lines "Tertiary Infotech Pte Ltd" / "Dr. Alfred Ang, \
+            DACE, ACTA, PMP" / "Managing Director" give fullName "Dr. Alfred \
+            Ang", company "Tertiary Infotech Pte Ltd", jobTitle "Managing \
+            Director". Copy values verbatim from the text; leave a field \
+            empty when the card does not contain it.
             """)
         let prompt = "Business card text:\n" + lines.joined(separator: "\n")
         let response = try await session.respond(to: prompt, generating: ExtractedContact.self)
