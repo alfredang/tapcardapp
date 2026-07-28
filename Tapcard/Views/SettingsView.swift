@@ -1,7 +1,9 @@
 import SwiftUI
+import ImagePlayground
 
 struct SettingsView: View {
     @Environment(AccountStore.self) private var account
+    @Environment(\.openURL) private var openURL
 
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
@@ -51,6 +53,26 @@ struct SettingsView: View {
                 }
             }
 
+            Section {
+                aiRow("Smart card parsing", available: parsingAvailable)
+                aiRow("Avatar & banner generation", available: imageGenAvailable)
+                if !(parsingAvailable && imageGenAvailable) {
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            openURL(url)
+                        }
+                    } label: {
+                        Label("Enable in Settings", systemImage: "gear")
+                    }
+                }
+            } header: {
+                Text("Apple Intelligence")
+            } footer: {
+                Text(parsingAvailable && imageGenAvailable
+                     ? "Apple Intelligence is active: scans are parsed by the on-device model, and you can generate card imagery."
+                     : "Turn on Apple Intelligence (Settings → Apple Intelligence & Siri) and wait for the model download. It powers smarter card parsing and avatar/banner generation — everything runs on-device.")
+            }
+
             Section("About") {
                 LabeledContent("App", value: "Tapcard")
                 LabeledContent("Version", value: appVersion)
@@ -98,6 +120,24 @@ struct SettingsView: View {
             }
             isDeleting = false
         }
+    }
+
+    private func aiRow(_ title: String, available: Bool) -> some View {
+        HStack {
+            Label(title, systemImage: "sparkles")
+            Spacer()
+            Text(available ? "On" : "Off")
+                .foregroundStyle(available ? Theme.success : .secondary)
+                .fontWeight(.medium)
+        }
+    }
+
+    private var parsingAvailable: Bool {
+        if #available(iOS 26.0, *) { AIContactExtractor.isAvailable } else { false }
+    }
+
+    private var imageGenAvailable: Bool {
+        if #available(iOS 18.1, *) { ImagePlaygroundViewController.isAvailable } else { false }
     }
 
     private var appVersion: String {

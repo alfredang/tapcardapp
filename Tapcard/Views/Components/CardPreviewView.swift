@@ -76,7 +76,7 @@ struct CardPreviewView: View {
     // Image editing (photos / Apple Intelligence) + maps chooser state.
     private enum ImageTarget { case avatar, banner }
     @State private var imageTarget: ImageTarget = .avatar
-    @State private var showImageChooser = false
+    @State private var showAIUnavailable = false
     @State private var showPhotoPicker = false
     @State private var photoItem: PhotosPickerItem?
     @State private var showAISheet = false
@@ -92,8 +92,7 @@ struct CardPreviewView: View {
                     CardImageView(source: card.coverBanner)
                 }
                 if isEditing {
-                    imageBadge { imageTarget = .banner; showImageChooser = true }
-                        .padding(8)
+                    imageMenu(for: .banner).padding(8)
                 }
             }
             .frame(height: 92)
@@ -103,8 +102,7 @@ struct CardPreviewView: View {
                 ZStack(alignment: .bottomTrailing) {
                     avatar
                     if isEditing {
-                        imageBadge { imageTarget = .avatar; showImageChooser = true }
-                            .offset(x: 4, y: 4)
+                        imageMenu(for: .avatar).offset(x: 4, y: 4)
                     }
                 }
                 Spacer()
@@ -155,15 +153,15 @@ struct CardPreviewView: View {
                 .stroke(theme.isDark ? .white.opacity(0.08) : Theme.border, lineWidth: 1)
         )
         .shadow(color: theme.accent.opacity(0.18), radius: 18, y: 10)
-        .confirmationDialog(imageTarget == .avatar ? "Profile photo" : "Banner image",
-                            isPresented: $showImageChooser, titleVisibility: .visible) {
-            Button("Choose from Photos") { showPhotoPicker = true }
-            if #available(iOS 18.1, *), ImagePlaygroundViewController.isAvailable {
-                Button("Generate with Apple Intelligence") { showAISheet = true }
+        .alert("Apple Intelligence unavailable", isPresented: $showAIUnavailable) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(url)
+                }
             }
-            if !currentImage.isEmpty {
-                Button("Remove image", role: .destructive) { setImage("") }
-            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Turn on Apple Intelligence in Settings → Apple Intelligence & Siri, wait for the model download to finish, then try again.")
         }
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .onChange(of: photoItem) {
@@ -217,16 +215,48 @@ struct CardPreviewView: View {
         }
     }
 
-    private func imageBadge(action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+    /// Camera badge that opens an anchored menu right where it sits — no
+    /// detached bottom sheet.
+    private func imageMenu(for target: ImageTarget) -> some View {
+        Menu {
+            Button {
+                imageTarget = target
+                showPhotoPicker = true
+            } label: {
+                Label("Choose from Photos", systemImage: "photo.on.rectangle")
+            }
+            Button {
+                imageTarget = target
+                requestAIGeneration()
+            } label: {
+                Label("Generate with Apple Intelligence", systemImage: "sparkles")
+            }
+            if !(target == .avatar ? card.profilePhoto : card.coverBanner).isEmpty {
+                Button(role: .destructive) {
+                    imageTarget = target
+                    setImage("")
+                } label: {
+                    Label("Remove image", systemImage: "trash")
+                }
+            }
+        } label: {
             Image(systemName: "camera.fill")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 26, height: 26)
                 .background(.black.opacity(0.55), in: Circle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Change image")
+        .accessibilityLabel(target == .avatar ? "Change profile photo" : "Change banner image")
+    }
+
+    /// Open Image Playground when the device can, otherwise explain how to
+    /// enable Apple Intelligence instead of silently hiding the option.
+    private func requestAIGeneration() {
+        if #available(iOS 18.1, *), ImagePlaygroundViewController.isAvailable {
+            showAISheet = true
+        } else {
+            showAIUnavailable = true
+        }
     }
 
     @ViewBuilder

@@ -104,7 +104,9 @@ struct BusinessCard: Codable, Equatable, Hashable {
     }
 
     /// Split a flat scanned/synced address into the structured fields (best
-    /// effort): a trailing chunk with 4+ digits becomes the postal code.
+    /// effort): a trailing chunk with 4+ digits becomes the postal code. The
+    /// flat string is cleared afterwards so the structured fields are the
+    /// single source of truth — emptying them really empties the address.
     mutating func decomposeAddressIfNeeded() {
         guard addressLine1.trimmed.isEmpty, addressLine2.trimmed.isEmpty,
               zipcode.trimmed.isEmpty, !address.trimmed.isEmpty else { return }
@@ -115,6 +117,7 @@ struct BusinessCard: Codable, Equatable, Hashable {
         }
         if !parts.isEmpty { addressLine1 = parts.removeFirst() }
         addressLine2 = parts.joined(separator: ", ")
+        address = ""
     }
 
     // Decode tolerantly: every key optional so cards persisted by any older
