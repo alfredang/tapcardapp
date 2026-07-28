@@ -27,10 +27,19 @@ extension CardTheme {
 
 // ─── Native card preview ────────────────────────────────────────────────────
 
+/// A field on the card — used to jump from a tapped preview element straight
+/// to its form field.
+enum CardField: Hashable {
+    case fullName, jobTitle, company, email, mobile, officePhone,
+         website, address, linkedin, facebook, instagram
+}
+
 /// The digital card rendered natively, Blinq-style — a pure function of
-/// `BusinessCard`, so theme and field edits re-render instantly.
+/// `BusinessCard`, so theme and field edits re-render instantly. When `onTap`
+/// is provided, tapping any element focuses that field in the form below.
 struct CardPreviewView: View {
     let card: BusinessCard
+    var onTap: ((CardField) -> Void)?
 
     private var theme: CardTheme { card.theme }
 
@@ -53,31 +62,39 @@ struct CardPreviewView: View {
             .padding(.horizontal, 18)
             .padding(.top, -34)
 
-            // Identity
+            // Identity — tap any line to edit it in the form below.
             VStack(alignment: .leading, spacing: 3) {
-                Text(card.fullName.trimmed.isEmpty ? "Your Name" : card.fullName)
-                    .font(.title3.bold())
-                    .foregroundStyle(theme.textColor)
+                tappable(.fullName) {
+                    Text(card.fullName.trimmed.isEmpty ? "Your Name" : card.fullName)
+                        .font(.title3.bold())
+                        .foregroundStyle(theme.textColor)
+                }
                 if !card.jobTitle.trimmed.isEmpty {
-                    Text(card.jobTitle)
-                        .font(.subheadline)
-                        .foregroundStyle(theme.subtextColor)
+                    tappable(.jobTitle) {
+                        Text(card.jobTitle)
+                            .font(.subheadline)
+                            .foregroundStyle(theme.subtextColor)
+                    }
                 }
                 if !card.company.trimmed.isEmpty {
-                    Text(card.company)
-                        .font(.subheadline)
-                        .foregroundStyle(theme.subtextColor)
+                    tappable(.company) {
+                        Text(card.company)
+                            .font(.subheadline)
+                            .foregroundStyle(theme.subtextColor)
+                    }
                 }
             }
             .padding(.horizontal, 18)
             .padding(.top, 10)
 
-            // Contact rows
+            // Contact rows — also tap-to-edit.
             VStack(alignment: .leading, spacing: 8) {
-                row("phone.fill", card.mobile.trimmed.isEmpty ? card.officePhone : card.mobile)
-                row("envelope.fill", card.email)
-                row("globe", card.website)
-                row("mappin.and.ellipse", card.address)
+                tappable(card.mobile.trimmed.isEmpty ? .officePhone : .mobile) {
+                    row("phone.fill", card.mobile.trimmed.isEmpty ? card.officePhone : card.mobile)
+                }
+                tappable(.email) { row("envelope.fill", card.email) }
+                tappable(.website) { row("globe", card.website) }
+                tappable(.address) { row("mappin.and.ellipse", card.address) }
             }
             .padding(.horizontal, 18)
             .padding(.top, 12)
@@ -99,6 +116,22 @@ struct CardPreviewView: View {
                 .stroke(theme.isDark ? .white.opacity(0.08) : Theme.border, lineWidth: 1)
         )
         .shadow(color: theme.accent.opacity(0.18), radius: 18, y: 10)
+    }
+
+    /// Wraps a preview element so tapping it (when editable) jumps to its
+    /// form field. Plain content when the preview is read-only.
+    @ViewBuilder
+    private func tappable(_ field: CardField, @ViewBuilder content: () -> some View) -> some View {
+        if let onTap {
+            Button {
+                onTap(field)
+            } label: {
+                content().contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            content()
+        }
     }
 
     @ViewBuilder
@@ -167,29 +200,32 @@ struct ThemeSwatchGrid: View {
 // ─── Shared editable form sections ──────────────────────────────────────────
 
 /// The card's editable fields — shared by the scan-review flow and the saved
-/// card editor so the two never drift. Every field has a one-tap clear (⊗).
+/// card editor so the two never drift. Every field has a one-tap clear (⊗),
+/// and the bound `FocusState` lets a tap on the preview jump straight here.
 struct CardFormFields: View {
     @Binding var card: BusinessCard
+    var focus: FocusState<CardField?>.Binding
 
     var body: some View {
         Section("Identity") {
-            field("Full name", text: $card.fullName, icon: "person", required: true)
-            field("Job title", text: $card.jobTitle, icon: "briefcase")
-            field("Company", text: $card.company, icon: "building.2")
+            field("Full name", text: $card.fullName, icon: "person", focus: .fullName, required: true)
+            field("Job title", text: $card.jobTitle, icon: "briefcase", focus: .jobTitle)
+            field("Company", text: $card.company, icon: "building.2", focus: .company)
         }
 
         Section("Contact") {
-            field("Email", text: $card.email, icon: "envelope",
+            field("Email", text: $card.email, icon: "envelope", focus: .email,
                   keyboard: .emailAddress, required: true)
-            field("Mobile", text: $card.mobile, icon: "iphone", keyboard: .phonePad)
-            field("Office phone", text: $card.officePhone, icon: "phone", keyboard: .phonePad)
-            field("Website", text: $card.website, icon: "globe", keyboard: .URL)
-            field("Address", text: $card.address, icon: "mappin.and.ellipse")
+            field("Mobile", text: $card.mobile, icon: "iphone", focus: .mobile, keyboard: .phonePad)
+            field("Office phone", text: $card.officePhone, icon: "phone", focus: .officePhone, keyboard: .phonePad)
+            field("Website", text: $card.website, icon: "globe", focus: .website, keyboard: .URL)
+            field("Address", text: $card.address, icon: "mappin.and.ellipse", focus: .address)
         }
 
         Section("Social") {
-            field("LinkedIn", text: $card.linkedin, icon: "link")
-            field("Twitter / X", text: $card.twitter, icon: "at")
+            field("LinkedIn", text: $card.linkedin, icon: "link", focus: .linkedin)
+            field("Facebook", text: $card.facebook, icon: "hand.thumbsup", focus: .facebook)
+            field("Instagram", text: $card.instagram, icon: "camera", focus: .instagram)
         }
 
         Section("Design") {
@@ -202,6 +238,7 @@ struct CardFormFields: View {
         _ title: String,
         text: Binding<String>,
         icon: String,
+        focus focusField: CardField,
         keyboard: UIKeyboardType = .default,
         required: Bool = false
     ) -> some View {
@@ -213,6 +250,7 @@ struct CardFormFields: View {
                 .keyboardType(keyboard)
                 .textInputAutocapitalization(keyboard == .emailAddress || keyboard == .URL ? .never : .words)
                 .autocorrectionDisabled(keyboard == .emailAddress || keyboard == .URL)
+                .focused(focus, equals: focusField)
             if !text.wrappedValue.isEmpty {
                 Button {
                     text.wrappedValue = ""
@@ -224,5 +262,6 @@ struct CardFormFields: View {
                 .accessibilityLabel("Clear \(title)")
             }
         }
+        .id(focusField)
     }
 }

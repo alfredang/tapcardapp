@@ -105,6 +105,8 @@ private struct OnboardRequest: Encodable {
     let website: String?
     let address: String?
     let linkedin: String?
+    let facebook: String?
+    let instagram: String?
     let twitter: String?
     let theme: String
     let accentColor: String
@@ -123,6 +125,8 @@ private struct OnboardRequest: Encodable {
         website = opt(card.website)
         address = opt(card.address)
         linkedin = opt(card.linkedin)
+        facebook = opt(card.facebook)
+        instagram = opt(card.instagram)
         twitter = opt(card.twitter)
         theme = card.theme.rawValue
         accentColor = card.accentColor

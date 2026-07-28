@@ -69,6 +69,9 @@ struct BusinessCard: Codable, Equatable {
     var address: String = ""
 
     var linkedin: String = ""
+    var facebook: String = ""
+    var instagram: String = ""
+    // Kept for older saved cards; no longer editable in the form.
     var twitter: String = ""
 
     var theme: CardTheme = .modern

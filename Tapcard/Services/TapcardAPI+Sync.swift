@@ -128,6 +128,8 @@ extension TapcardAPI {
         var website: String?
         var address: String?
         var linkedin: String?
+        var facebook: String?
+        var instagram: String?
         var twitter: String?
         var theme: String?
         var accentColor: String?
@@ -149,6 +151,8 @@ extension TapcardAPI {
             card.website = website ?? ""
             card.address = address ?? ""
             card.linkedin = linkedin ?? ""
+            card.facebook = facebook ?? ""
+            card.instagram = instagram ?? ""
             card.twitter = twitter ?? ""
             card.theme = CardTheme(rawValue: theme ?? "") ?? .modern
             card.accentColor = accentColor ?? Constants.accentHex
@@ -182,6 +186,8 @@ extension TapcardAPI {
             "website": website,
             "address": card.address.trimmed,
             "linkedin": card.linkedin.trimmed,
+            "facebook": card.facebook.trimmed,
+            "instagram": card.instagram.trimmed,
             "twitter": card.twitter.trimmed,
             "theme": card.theme.rawValue,
             "accentColor": card.accentColor,

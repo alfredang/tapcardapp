@@ -11,6 +11,7 @@ struct EditCardView: View {
     @State private var card: BusinessCard
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @FocusState private var focusedField: CardField?
 
     init(saved: SavedCard) {
         cardID = saved.id
@@ -30,13 +31,19 @@ struct EditCardView: View {
                 }
             }
 
-            Section("Preview") {
-                CardPreviewView(card: card)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
+            Section {
+                CardPreviewView(card: card) { field in
+                    focusedField = field
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            } header: {
+                Text("Preview")
+            } footer: {
+                Text("Tap any part of the card to edit it.")
             }
 
-            CardFormFields(card: $card)
+            CardFormFields(card: $card, focus: $focusedField)
 
             Section {
                 Button {
