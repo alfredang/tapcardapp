@@ -20,7 +20,7 @@ struct ScanFlowView: View {
                 case .submitting:
                     progress("Setting up your digital card…")
                 case .done(let result):
-                    CardResultView(result: result) { dismiss() }
+                    CardResultView(result: result, card: model.card) { dismiss() }
                 }
             }
             .navigationTitle(title)

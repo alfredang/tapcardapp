@@ -19,17 +19,15 @@ struct ReviewCardView: View {
             }
 
             Section {
-                CardPreviewView(card: model.card) { field in
-                    focusedField = field
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
+                CardPreviewView(editing: $model.card)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
             } header: {
-                Text("Preview")
+                Text("Your card — tap any line to edit")
             } footer: {
                 Text(model.parsedWithAI
-                     ? "Fields extracted with Apple Intelligence — tap any part of the card to edit it."
-                     : "Fields extracted on-device — tap any part of the card to edit it.")
+                     ? "Fields extracted with Apple Intelligence — edit directly on the card."
+                     : "Fields extracted on-device — edit directly on the card.")
             }
 
             CardFormFields(card: $model.card, focus: $focusedField)

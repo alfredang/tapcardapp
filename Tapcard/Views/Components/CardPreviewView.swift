@@ -35,11 +35,28 @@ enum CardField: Hashable {
 }
 
 /// The digital card rendered natively, Blinq-style — a pure function of
-/// `BusinessCard`, so theme and field edits re-render instantly. When `onTap`
-/// is provided, tapping any element focuses that field in the form below.
+/// `BusinessCard`, so theme and field edits re-render instantly.
+///
+/// Two modes:
+/// - read-only (`card:`) — how visitors see it;
+/// - WYSIWYG (`editing:`) — every text element becomes an inline field,
+///   edited in place with the card's own typography and colors.
 struct CardPreviewView: View {
-    let card: BusinessCard
-    var onTap: ((CardField) -> Void)?
+    private let stored: BusinessCard
+    private var editing: Binding<BusinessCard>?
+
+    init(card: BusinessCard) {
+        stored = card
+        editing = nil
+    }
+
+    init(editing: Binding<BusinessCard>) {
+        stored = editing.wrappedValue
+        self.editing = editing
+    }
+
+    private var card: BusinessCard { editing?.wrappedValue ?? stored }
+    private var isEditing: Bool { editing != nil }
 
     private var theme: CardTheme { card.theme }
 
@@ -62,39 +79,26 @@ struct CardPreviewView: View {
             .padding(.horizontal, 18)
             .padding(.top, -34)
 
-            // Identity — tap any line to edit it in the form below.
+            // Identity — in editing mode every line is typed in place.
             VStack(alignment: .leading, spacing: 3) {
-                tappable(.fullName) {
-                    Text(card.fullName.trimmed.isEmpty ? "Your Name" : card.fullName)
-                        .font(.title3.bold())
-                        .foregroundStyle(theme.textColor)
-                }
-                if !card.jobTitle.trimmed.isEmpty {
-                    tappable(.jobTitle) {
-                        Text(card.jobTitle)
-                            .font(.subheadline)
-                            .foregroundStyle(theme.subtextColor)
-                    }
-                }
-                if !card.company.trimmed.isEmpty {
-                    tappable(.company) {
-                        Text(card.company)
-                            .font(.subheadline)
-                            .foregroundStyle(theme.subtextColor)
-                    }
-                }
+                inlineText("Your Name", \.fullName,
+                           font: .title3.bold(), color: theme.textColor)
+                inlineText("Job title", \.jobTitle,
+                           font: .subheadline, color: theme.subtextColor)
+                inlineText("Company", \.company,
+                           font: .subheadline, color: theme.subtextColor)
             }
             .padding(.horizontal, 18)
             .padding(.top, 10)
 
-            // Contact rows — also tap-to-edit.
+            // Contact rows — inline-editable too.
             VStack(alignment: .leading, spacing: 8) {
-                tappable(card.mobile.trimmed.isEmpty ? .officePhone : .mobile) {
-                    row("phone.fill", card.mobile.trimmed.isEmpty ? card.officePhone : card.mobile)
-                }
-                tappable(.email) { row("envelope.fill", card.email) }
-                tappable(.website) { row("globe", card.website) }
-                tappable(.address) { row("mappin.and.ellipse", card.address) }
+                row("phone.fill", "Mobile",
+                    !isEditing && card.mobile.trimmed.isEmpty ? \.officePhone : \.mobile,
+                    keyboard: .phonePad)
+                row("envelope.fill", "Email", \.email, keyboard: .emailAddress)
+                row("globe", "Website", \.website, keyboard: .URL)
+                row("mappin.and.ellipse", "Address", \.address)
             }
             .padding(.horizontal, 18)
             .padding(.top, 12)
@@ -118,34 +122,53 @@ struct CardPreviewView: View {
         .shadow(color: theme.accent.opacity(0.18), radius: 18, y: 10)
     }
 
-    /// Wraps a preview element so tapping it (when editable) jumps to its
-    /// form field. Plain content when the preview is read-only.
+    /// A binding into the edited card for one field.
+    private func binding(_ keyPath: WritableKeyPath<BusinessCard, String>) -> Binding<String> {
+        Binding(
+            get: { editing?.wrappedValue[keyPath: keyPath] ?? "" },
+            set: { editing?.wrappedValue[keyPath: keyPath] = $0 }
+        )
+    }
+
+    /// Text that becomes an in-place field while editing; hidden entirely when
+    /// read-only and empty (identity lines and rows share this rule).
     @ViewBuilder
-    private func tappable(_ field: CardField, @ViewBuilder content: () -> some View) -> some View {
-        if let onTap {
-            Button {
-                onTap(field)
-            } label: {
-                content().contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        } else {
-            content()
+    private func inlineText(_ placeholder: String,
+                            _ keyPath: WritableKeyPath<BusinessCard, String>,
+                            font: Font, color: Color,
+                            keyboard: UIKeyboardType = .default) -> some View {
+        if isEditing {
+            TextField(placeholder, text: binding(keyPath))
+                .font(font)
+                .foregroundStyle(color)
+                .keyboardType(keyboard)
+                .textInputAutocapitalization(keyboard == .emailAddress || keyboard == .URL ? .never : .words)
+                .autocorrectionDisabled(keyboard == .emailAddress || keyboard == .URL)
+        } else if keyPath == \.fullName {
+            Text(card.fullName.trimmed.isEmpty ? "Your Name" : card.fullName)
+                .font(font)
+                .foregroundStyle(color)
+        } else if !card[keyPath: keyPath].trimmed.isEmpty {
+            Text(card[keyPath: keyPath])
+                .font(font)
+                .foregroundStyle(color)
         }
     }
 
     @ViewBuilder
-    private func row(_ icon: String, _ value: String) -> some View {
-        if !value.trimmed.isEmpty {
+    private func row(_ icon: String, _ placeholder: String,
+                     _ keyPath: WritableKeyPath<BusinessCard, String>,
+                     keyboard: UIKeyboardType = .default) -> some View {
+        if isEditing || !card[keyPath: keyPath].trimmed.isEmpty {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.caption)
                     .foregroundStyle(theme.accent)
                     .frame(width: 30, height: 30)
                     .background(theme.chip, in: Circle())
-                Text(value)
-                    .font(.footnote)
-                    .foregroundStyle(theme.textColor)
+                inlineText(placeholder, keyPath,
+                           font: .footnote, color: theme.textColor,
+                           keyboard: keyboard)
                     .lineLimit(2)
             }
         }

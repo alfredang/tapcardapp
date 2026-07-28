@@ -32,15 +32,13 @@ struct EditCardView: View {
             }
 
             Section {
-                CardPreviewView(card: card) { field in
-                    focusedField = field
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
+                CardPreviewView(editing: $card)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
             } header: {
-                Text("Preview")
+                Text("Your card — tap any line to edit")
             } footer: {
-                Text("Tap any part of the card to edit it.")
+                Text("Edit directly on the card; more fields below.")
             }
 
             CardFormFields(card: $card, focus: $focusedField)

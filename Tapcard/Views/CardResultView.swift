@@ -1,31 +1,36 @@
 import SwiftUI
 
-/// Success screen shown after a card is published: QR code, public link, share
-/// actions, and (for a brand-new account) the issued login credentials.
+/// Success screen shown after a card is published: the live card rendered
+/// natively, QR code, share actions, and (for a brand-new account) the issued
+/// login credentials. Everything stays in the app — the public URL is for
+/// sharing, not for viewing your own card.
 struct CardResultView: View {
     let result: ScanViewModel.OnboardResult
+    let card: BusinessCard
     var onDone: () -> Void
 
     @Environment(AccountStore.self) private var account
     @State private var showShare = false
 
-    private var accent: Color { Color(hex: Constants.accentHex) }
-
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 22) {
                 VStack(spacing: 8) {
                     Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 52))
-                        .foregroundStyle(accent)
+                        .font(.system(size: 48))
+                        .foregroundStyle(Theme.gradientPrimary)
                     Text("Your digital card is live")
                         .font(.title2.bold())
-                    Text(result.card.url)
+                        .foregroundStyle(Theme.foreground)
+                    Text(result.card.url.replacingOccurrences(of: "https://", with: ""))
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.mutedForeground)
                         .textSelection(.enabled)
                 }
                 .padding(.top)
+
+                // The card itself — native, exactly as visitors see it.
+                CardPreviewView(card: card)
 
                 qrCard
 
@@ -38,26 +43,17 @@ struct CardResultView: View {
                         showShare = true
                     } label: {
                         Label("Share card", systemImage: "square.and.arrow.up")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
-
-                    Link(destination: URL(string: result.card.url)!) {
-                        Label("Open public card", systemImage: "safari")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                    }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(GradientButtonStyle())
 
                     Button("Done", action: onDone)
+                        .font(.headline)
                         .padding(.top, 4)
                 }
             }
             .padding()
         }
+        .background(Theme.background)
         .sheet(isPresented: $showShare) {
             ShareSheet(items: shareItems)
         }
@@ -70,26 +66,26 @@ struct CardResultView: View {
                     .interpolation(.none)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 220, height: 220)
+                    .frame(width: 200, height: 200)
             }
             Text("Scan to open the card")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.mutedForeground)
         }
         .padding(24)
         .frame(maxWidth: .infinity)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .surfaceCard()
     }
 
     private func credentials(password: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Account created", systemImage: "key.fill")
                 .font(.headline)
-            Text("Sign in at tapcard.tertiaryinfotech.com to manage your card and leads.")
+            Text("Use these to sign in on another device — everything here stays in the app.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.mutedForeground)
             Divider()
-            row("Email", result.card.url.isEmpty ? "" : account.email ?? "")
+            row("Email", account.email ?? "")
             row("Password", password)
             Text("Saved securely in your Keychain.")
                 .font(.caption2)
@@ -97,12 +93,12 @@ struct CardResultView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Theme.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func row(_ label: String, _ value: String) -> some View {
         HStack {
-            Text(label).foregroundStyle(.secondary)
+            Text(label).foregroundStyle(Theme.mutedForeground)
             Spacer()
             Text(value).fontDesign(.monospaced).textSelection(.enabled)
         }
