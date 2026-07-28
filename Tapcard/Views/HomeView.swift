@@ -5,28 +5,63 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AccountStore.self) private var account
     @State private var showingScan = false
+    @State private var editingCard: SavedCard?
+    @State private var pendingDelete: SavedCard?
+    @State private var deleteError: String?
 
     private var accent: Color { Color(hex: Constants.accentHex) }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
+            List {
+                Group {
                     // With a published card, your QR leads the screen — the
                     // fastest way to get scanned in person (Blinq-style).
                     if let first = account.cards.first {
                         MyQRPanel(card: first)
                     }
                     hero
-                    if !account.cards.isEmpty {
-                        myCardsSection
-                    } else {
-                        emptyState
-                    }
                 }
-                .padding()
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+
+                if account.cards.isEmpty {
+                    emptyState
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                } else {
+                    myCardsSection
+                }
             }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
             .background(Theme.background)
+            .navigationDestination(item: $editingCard) { card in
+                EditCardView(saved: card)
+            }
+            .confirmationDialog(
+                "Delete this card?",
+                isPresented: Binding(get: { pendingDelete != nil },
+                                     set: { if !$0 { pendingDelete = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Delete card", role: .destructive) {
+                    guard let card = pendingDelete else { return }
+                    pendingDelete = nil
+                    Task { deleteError = await account.deleteCard(card) }
+                }
+            } message: {
+                Text("The public link stops working immediately. This can't be undone.")
+            }
+            .alert("Couldn't delete card", isPresented: Binding(
+                get: { deleteError != nil },
+                set: { if !$0 { deleteError = nil } })
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteError ?? "")
+            }
             .navigationTitle("Tapcard")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -87,17 +122,27 @@ struct HomeView: View {
     }
 
     private var myCardsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("My digital cards")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        Section("My digital cards") {
             ForEach(account.cards) { card in
                 NavigationLink {
                     SavedCardDetailView(card: card)
                 } label: {
                     SavedCardRow(card: card, accent: accent)
                 }
-                .buttonStyle(.plain)
+                // Swipe left: Edit, or Delete (with confirmation).
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        pendingDelete = card
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    Button {
+                        editingCard = card
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    .tint(Theme.primary)
+                }
             }
         }
     }

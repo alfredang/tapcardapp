@@ -167,6 +167,11 @@ extension TapcardAPI {
         return try decode(CardsWire.self, from: data).cards ?? []
     }
 
+    /// Delete a published card (the server enforces ownership).
+    static func deleteCard(token: String, id: String) async throws {
+        _ = try await request("DELETE", "/api/mobile/cards/\(id)", token: token)
+    }
+
     /// Update a published card in place (PATCH). Empty strings are sent
     /// deliberately — that's how a field is cleared on the server.
     static func updateCard(token: String, id: String, card: BusinessCard) async throws {

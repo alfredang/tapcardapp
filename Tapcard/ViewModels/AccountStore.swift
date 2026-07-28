@@ -3,7 +3,7 @@ import Observation
 
 /// A digital card the user has created on this device, persisted locally so the
 /// Home screen can list previously published cards and re-open their links/QR.
-struct SavedCard: Codable, Identifiable, Equatable {
+struct SavedCard: Codable, Identifiable, Equatable, Hashable {
     var id: String
     var fullName: String
     var company: String
@@ -76,6 +76,25 @@ final class AccountStore {
         let serverIds = Set(mapped.map(\.id))
         cards = mapped + cards.filter { !serverIds.contains($0.id) }
         persist()
+    }
+
+    /// Delete a card on the server, then locally. Returns an error message to
+    /// surface, or nil on success. A server "Not found" (a local-only card)
+    /// still removes the local copy.
+    func deleteCard(_ card: SavedCard) async -> String? {
+        if let token {
+            do {
+                try await TapcardAPI.deleteCard(token: token, id: card.id)
+            } catch APIError.server(let message)
+                        where message.localizedCaseInsensitiveContains("not found") {
+                // Never synced — nothing to delete remotely.
+            } catch {
+                return error.localizedDescription
+            }
+        }
+        cards.removeAll { $0.id == card.id }
+        persist()
+        return nil
     }
 
     func record(_ response: OnboardResponse, card: BusinessCard) {

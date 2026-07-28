@@ -58,7 +58,7 @@ enum CardTheme: String, CaseIterable, Identifiable, Codable {
 /// The contact details extracted from a scanned business card and edited by the
 /// user before publishing. Field names line up 1:1 with the backend card model
 /// so this struct encodes straight into the onboarding request body.
-struct BusinessCard: Codable, Equatable {
+struct BusinessCard: Codable, Equatable, Hashable {
     var fullName: String = ""
     var jobTitle: String = ""
     var company: String = ""
