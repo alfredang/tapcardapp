@@ -34,7 +34,7 @@ sets up your account, and publishes a live digital card with a QR code — backe
 
 ## What it does
 
-1. **Scan** — VisionKit's document camera captures and de-skews a paper business card.
+1. **Scan** — a single-shot AVFoundation + Vision scanner: live edge detection, one auto-capture when the card is steady, perspective correction, and a Use photo / Retake confirm.
 2. **Read** — Vision OCR extracts the text on-device; a heuristic parser sorts it into
    name, title, company, email, phone, website, address and socials.
 3. **Confirm** — you review and correct the auto-filled fields (or enter them manually).
@@ -51,7 +51,7 @@ your account.
 | Category | Details |
 |---|---|
 | **Language / UI** | Swift 6 (strict concurrency), SwiftUI, MVVM, iOS 18+ |
-| **Scanning / OCR** | VisionKit (`VNDocumentCameraViewController`), Vision (`VNRecognizeTextRequest`) |
+| **Scanning / OCR** | AVFoundation + Vision (`VNDetectDocumentSegmentationRequest`, `VNRecognizeTextRequest`); Apple Intelligence (FoundationModels, iOS 26+) refines the parsed fields |
 | **State** | `@Observable` view models, `@MainActor` isolation |
 | **Networking** | `URLSession` async/await → Tapcard REST API |
 | **Storage** | UserDefaults (created cards) + Keychain (credentials) |
@@ -65,7 +65,8 @@ your account.
 ```
 App/          TapcardApp.swift — @main, injects AccountStore
 Models/       BusinessCard (scanned/edited fields), CardTheme, PublishedCard
-Services/     CardScannerService (VisionKit), OCRService (Vision), ContactParser,
+Services/     CardScannerService (single-shot camera), OCRService (Vision), ContactParser,
+              AIContactExtractor (Apple Intelligence),
               TapcardAPI (backend onboarding), KeychainStore
 ViewModels/   ScanViewModel (scan→review→publish), AccountStore  (@MainActor @Observable)
 Views/        Home, ScanFlow, ReviewCard, CardResult, SavedCardDetail, Settings

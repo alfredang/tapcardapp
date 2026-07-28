@@ -12,6 +12,11 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    // With a published card, your QR leads the screen — the
+                    // fastest way to get scanned in person (Blinq-style).
+                    if let first = account.cards.first {
+                        MyQRPanel(card: first)
+                    }
                     hero
                     if !account.cards.isEmpty {
                         myCardsSection
@@ -21,7 +26,7 @@ struct HomeView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.background)
             .navigationTitle("Tapcard")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

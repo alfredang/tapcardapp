@@ -69,7 +69,7 @@ struct ScanFlowView: View {
             Text("Point your camera at a business card")
                 .font(.title3.bold())
                 .multilineTextAlignment(.center)
-            Text("VisionKit captures and straightens the card, then it's read on-device.")
+            Text("One photo is snapped and straightened automatically, then read on-device.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

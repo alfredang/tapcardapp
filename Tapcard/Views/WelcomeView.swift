@@ -1,34 +1,44 @@
 import SwiftUI
 
-/// First-run landing — mirrors the Android welcome screen: brand hero plus
-/// "Create account" / "Log in" entry points into `AuthView`.
+/// First-run landing — a native take on the website's hero: brand mark,
+/// "Replace paper cards with smart digital cards" headline with gradient
+/// words, feature rows, and a gradient "Create free card" CTA.
 struct WelcomeView: View {
     @Environment(AccountStore.self) private var account
     @State private var authMode: AuthView.Mode?
-
-    private var accent: Color { Color(hex: Constants.accentHex) }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 Spacer()
+
+                // Brand mark — gradient tile + sparkles, as on the site header.
                 ZStack {
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .fill(LinearGradient(colors: [accent, Color(hex: Constants.coralHex)],
-                                             startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 120, height: 120)
-                    Image(systemName: "person.crop.rectangle.fill")
-                        .font(.system(size: 54, weight: .semibold))
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        .fill(Theme.gradientPrimary)
+                        .frame(width: 104, height: 104)
+                        .shadow(color: Theme.primary.opacity(0.35), radius: 24, y: 12)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 48, weight: .semibold))
                         .foregroundStyle(.white)
                 }
                 .padding(.bottom, 24)
 
-                Text("Tapcard")
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
-                Text("Your business card, reimagined")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 4)
+                // The hero headline, with the site's gradient-tinted words.
+                (Text("Replace paper cards with ")
+                    .foregroundStyle(Theme.foreground)
+                 + Text("smart ")
+                    .foregroundStyle(Theme.primary)
+                 + Text("digital cards")
+                    .foregroundStyle(Theme.accent))
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+
+                Text("Create, share, capture leads and publish a professional card in under two minutes.")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.mutedForeground)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 8)
 
                 VStack(alignment: .leading, spacing: 14) {
                     featureRow("camera.viewfinder", "Scan paper cards with on-device OCR")
@@ -36,36 +46,23 @@ struct WelcomeView: View {
                     featureRow("person.2.fill", "Keep leads and contacts in one place")
                     featureRow("chart.bar.fill", "See views, taps and leads for your card")
                 }
-                .padding(.top, 32)
-                .padding(.horizontal, 8)
+                .padding(20)
+                .surfaceCard()
+                .padding(.top, 28)
 
                 Spacer()
 
                 VStack(spacing: 12) {
-                    Button {
-                        authMode = .signUp
-                    } label: {
-                        Text("Create account")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(accent)
+                    Button("Create free card") { authMode = .signUp }
+                        .buttonStyle(GradientButtonStyle())
 
-                    Button {
-                        authMode = .logIn
-                    } label: {
-                        Text("Log in")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .buttonStyle(.bordered)
+                    Button("Log in") { authMode = .logIn }
+                        .buttonStyle(OutlineButtonStyle())
                 }
                 .padding(.bottom, 8)
             }
             .padding(24)
+            .tapcardBackground()
             .navigationDestination(item: $authMode) { mode in
                 AuthView(mode: mode)
             }
@@ -80,10 +77,11 @@ struct WelcomeView: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.body.weight(.semibold))
-                .foregroundStyle(accent)
+                .foregroundStyle(Theme.primary)
                 .frame(width: 28)
             Text(text)
                 .font(.subheadline)
+                .foregroundStyle(Theme.foreground)
             Spacer(minLength: 0)
         }
     }

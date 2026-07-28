@@ -8,7 +8,10 @@ struct TapcardApp: App {
         WindowGroup {
             RootView()
                 .environment(account)
-                .tint(Color(hex: Constants.accentHex))
+                .tint(Theme.primary)
+                // The website is light-by-default (dark is an opt-in toggle);
+                // lock the app to light so both surfaces match.
+                .preferredColorScheme(.light)
         }
     }
 }

@@ -108,6 +108,8 @@ struct PlannerView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
         }
     }
 
@@ -138,6 +140,8 @@ struct PlannerView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
         }
     }
 

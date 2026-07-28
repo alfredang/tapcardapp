@@ -37,11 +37,36 @@ struct ReviewCardView: View {
             }
 
             Section("Design") {
-                Picker("Theme", selection: $model.card.theme) {
+                // 20 templates as gradient swatches, mirroring the web builder.
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4),
+                          spacing: 12) {
                     ForEach(CardTheme.allCases) { theme in
-                        Text(theme.label).tag(theme)
+                        Button {
+                            model.card.theme = theme
+                        } label: {
+                            VStack(spacing: 4) {
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(LinearGradient(
+                                        colors: [Color(hex: theme.gradientHexes.start),
+                                                 Color(hex: theme.gradientHexes.end)],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .frame(height: 34)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .stroke(model.card.theme == theme ? Theme.primary : .clear,
+                                                    lineWidth: 2.5)
+                                    )
+                                Text(theme.label)
+                                    .font(.caption2)
+                                    .foregroundStyle(model.card.theme == theme
+                                                     ? Theme.primary : Theme.mutedForeground)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.vertical, 4)
             }
 
             Section {

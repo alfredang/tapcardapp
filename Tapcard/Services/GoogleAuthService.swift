@@ -36,8 +36,9 @@ enum GoogleAuthService {
             return nil
         }
         let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
-        // An unsubstituted build setting leaves the literal "$(...)" behind.
-        guard !trimmed.isEmpty, !trimmed.hasPrefix("$(") else { return nil }
+        // An unsubstituted build setting leaves the literal "$(...)" behind —
+        // and an unset env var at `xcodegen generate` time leaves "${...}".
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("$("), !trimmed.hasPrefix("${") else { return nil }
         return trimmed
     }
 

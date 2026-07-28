@@ -21,7 +21,7 @@ struct ShareToolsView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Theme.background)
         .navigationTitle("Share tools")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showShare) {

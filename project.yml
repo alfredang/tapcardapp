@@ -9,8 +9,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.2"
-    CURRENT_PROJECT_VERSION: "4"
+    MARKETING_VERSION: "1.3"
+    CURRENT_PROJECT_VERSION: "5"
     DEVELOPMENT_TEAM: "GU9WTSTX9M"   # Tertiary Infotech (paid) — same team as Tertiary Scanner / RunTrack GPS
     CODE_SIGN_STYLE: Automatic
     ENABLE_USER_SCRIPT_SANDBOXING: YES
@@ -63,11 +63,15 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tertiaryinfotech.tapcard
-        # Google's iOS OAuth client for com.tertiaryinfotech.tapcard. Public
-        # identifiers (they ship inside the app binary), so they live here rather
-        # than in .env. The URL scheme is the client ID's reversed form.
-        GOOGLE_IOS_CLIENT_ID: ""
-        GOOGLE_IOS_URL_SCHEME: ""
+        # Google's iOS OAuth client for com.tertiaryinfotech.tapcard — an
+        # iOS-type client from the same Google Cloud project as the web's
+        # GOOGLE_CLIENT_ID (the web/Android client can't be reused on iOS).
+        # Values come from .env at generate time:
+        #   set -a; source .env; set +a; xcodegen generate
+        # The URL scheme is the client ID's reversed form. When unset, the app
+        # builds fine and simply hides the Google button.
+        GOOGLE_IOS_CLIENT_ID: "${GOOGLE_IOS_CLIENT_ID}"
+        GOOGLE_IOS_URL_SCHEME: "${GOOGLE_IOS_URL_SCHEME}"
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor

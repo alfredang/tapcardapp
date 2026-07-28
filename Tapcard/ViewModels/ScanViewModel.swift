@@ -49,7 +49,17 @@ final class ScanViewModel {
         }
         do {
             let lines = try await OCRService.recognizeLines(in: cgImage)
-            card = ContactParser.parse(lines: lines)
+            var parsed = ContactParser.parse(lines: lines)
+            // Apple Intelligence pass: the on-device model reads the card as a
+            // whole and fixes what the line heuristics get wrong (person vs
+            // company name, address vs slogan). Best-effort — any failure
+            // just keeps the heuristic parse.
+            if #available(iOS 26.0, *), AIContactExtractor.isAvailable {
+                if let ai = try? await AIContactExtractor.extract(fromLines: lines) {
+                    parsed.refine(with: ai)
+                }
+            }
+            card = parsed
             stage = .review
         } catch {
             errorMessage = "Text recognition failed. You can enter details manually."

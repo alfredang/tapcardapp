@@ -36,7 +36,7 @@ struct AnalyticsView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.background)
             .navigationTitle("Analytics")
             .task { await reload() }
             .refreshable { await reload() }

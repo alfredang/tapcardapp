@@ -21,3 +21,4 @@ Tapcard.xcodeproj/
 .playwright-mcp/
 asc-*.png
 *.xcarchive
+client_*.apps.googleusercontent.com.plist

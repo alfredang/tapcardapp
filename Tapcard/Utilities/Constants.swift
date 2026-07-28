@@ -20,10 +20,11 @@ enum Constants {
 
     /// Brand palette, matching tapcard.tertiaryinfotech.com: a violet primary
     /// with a coral and a teal secondary used for gradients and highlights.
-    static let accentHex = "#7C5CFF"
+    /// Kept in sync with `Theme` (the full design system port).
+    static let accentHex = "#6A47F5"     // --primary  hsl(252 90% 62%)
     static let accentDeepHex = "#5B3FE0"
-    static let coralHex = "#FA6B55"
-    static let tealHex = "#16B5A3"
+    static let coralHex = "#F86E59"      // --accent   hsl(8 92% 66%)
+    static let tealHex = "#16B6A0"       // --highlight hsl(172 78% 40%)
 
     static let supportURL = URL(string: "https://www.tertiaryinfotech.com")!
 }
