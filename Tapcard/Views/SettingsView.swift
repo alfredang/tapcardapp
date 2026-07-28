@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var showDeleteConfirm = false
+    @State private var showFeedback = false
     @State private var isDeleting = false
     @State private var deleteError: String?
 
@@ -72,15 +73,30 @@ struct SettingsView: View {
             }
 
             Section("About") {
-                LabeledContent("App", value: "Tapcard")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Tapcard")
+                        .font(.headline)
+                    Text("Tapcard turns any paper business card into a live digital card. Scan a card and it's read entirely on-device; review the details, pick one of 20 themes, and publish a shareable page with its own link and QR code. Edit everything right on the card, capture leads from people who view it, keep contacts and follow-ups organised in the built-in planner, and watch views, taps and leads in Analytics — all from your phone.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
                 LabeledContent("Version", value: appVersion)
-                Link("Support", destination: Constants.supportURL)
             }
 
-            Section {
-                Text("Tapcard turns paper business cards into shareable digital cards. Scanning and text recognition run on-device with VisionKit; your card details sync to your Tapcard account.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            Section("Developer") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Tertiary Infotech Academy Pte Ltd")
+                        .font(.subheadline.weight(.medium))
+                    Link("tertiaryinfotech.com", destination: Constants.supportURL)
+                        .font(.footnote)
+                }
+                .padding(.vertical, 2)
+                Button {
+                    showFeedback = true
+                } label: {
+                    Label("Send Feedback", systemImage: "bubble.left.and.bubble.right.fill")
+                }
             }
         }
         .scrollContentBackground(.hidden)
@@ -96,6 +112,9 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This permanently deletes your account and all cards you've published. This cannot be undone.")
+        }
+        .sheet(isPresented: $showFeedback) {
+            FeedbackSheet()
         }
         .alert("Couldn't delete account", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
@@ -138,5 +157,60 @@ struct SettingsView: View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         return "\(v) (\(b))"
+    }
+}
+
+
+/// Feedback dialog — Title + Message, sent to the Tertiary Infotech WhatsApp
+/// Business line. The wa.me link works whether or not WhatsApp is installed.
+struct FeedbackSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
+    @State private var title = ""
+    @State private var message = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Title") {
+                    TextField("What's this about?", text: $title)
+                }
+                Section("Message") {
+                    TextEditor(text: $message)
+                        .frame(minHeight: 130)
+                        .scrollContentBackground(.hidden)
+                }
+                Section {
+                    Button {
+                        send()
+                    } label: {
+                        Label("Send via WhatsApp", systemImage: "paperplane.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(title.trimmed.isEmpty && message.trimmed.isEmpty)
+                } footer: {
+                    Text("Opens WhatsApp to our support line, +65 8866 6375.")
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
+            .navigationTitle("Feedback")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func send() {
+        var components = URLComponents(string: "https://wa.me/6588666375")!
+        let body = "Tapcard feedback — \(title.trimmed)\n\n\(message.trimmed)"
+        components.queryItems = [URLQueryItem(name: "text", value: body)]
+        if let url = components.url { openURL(url) }
+        dismiss()
     }
 }
