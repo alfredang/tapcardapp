@@ -1,5 +1,4 @@
 import SwiftUI
-import ImagePlayground
 
 struct SettingsView: View {
     @Environment(AccountStore.self) private var account
@@ -55,8 +54,7 @@ struct SettingsView: View {
 
             Section {
                 aiRow("Smart card parsing", available: parsingAvailable)
-                aiRow("Avatar & banner generation", available: imageGenAvailable)
-                if !(parsingAvailable && imageGenAvailable) {
+                if !parsingAvailable {
                     Button {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
                             openURL(url)
@@ -68,9 +66,9 @@ struct SettingsView: View {
             } header: {
                 Text("Apple Intelligence")
             } footer: {
-                Text(parsingAvailable && imageGenAvailable
-                     ? "Apple Intelligence is active: scans are parsed by the on-device model, and you can generate card imagery."
-                     : "Turn on Apple Intelligence (Settings → Apple Intelligence & Siri) and wait for the model download. It powers smarter card parsing and avatar/banner generation — everything runs on-device.")
+                Text(parsingAvailable
+                     ? "Apple Intelligence is active: scanned cards are parsed by the on-device model."
+                     : "Turn on Apple Intelligence (Settings → Apple Intelligence & Siri) and wait for the model download. It powers smarter card parsing — everything runs on-device.")
             }
 
             Section("About") {
@@ -134,10 +132,6 @@ struct SettingsView: View {
 
     private var parsingAvailable: Bool {
         if #available(iOS 26.0, *) { AIContactExtractor.isAvailable } else { false }
-    }
-
-    private var imageGenAvailable: Bool {
-        if #available(iOS 18.1, *) { ImagePlaygroundViewController.isAvailable } else { false }
     }
 
     private var appVersion: String {

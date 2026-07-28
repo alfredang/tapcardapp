@@ -1,6 +1,5 @@
 import SwiftUI
 import PhotosUI
-import ImagePlayground
 
 // ─── Per-theme design tokens ────────────────────────────────────────────────
 
@@ -73,31 +72,34 @@ struct CardPreviewView: View {
 
     private var theme: CardTheme { card.theme }
 
-    // Image editing (photos / Apple Intelligence) + maps chooser state.
+    // Image editing (photo library) + maps chooser state.
     private enum ImageTarget { case avatar, banner }
     @State private var imageTarget: ImageTarget = .avatar
-    @State private var showAIUnavailable = false
     @State private var showPhotoPicker = false
     @State private var photoItem: PhotosPickerItem?
-    @State private var showAISheet = false
     @State private var showMapChooser = false
     @Environment(\.openURL) private var openURL
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Banner + overlapping avatar (both replaceable while editing)
-            ZStack(alignment: .topTrailing) {
-                theme.banner
-                if !card.coverBanner.trimmed.isEmpty {
-                    CardImageView(source: card.coverBanner)
+            // Banner + overlapping avatar (both replaceable while editing).
+            // Images render as overlays: overlay content has no say in
+            // layout, so a huge photo can't inflate the row height.
+            Color.clear
+                .frame(height: 92)
+                .frame(maxWidth: .infinity)
+                .background(theme.banner)
+                .overlay {
+                    if !card.coverBanner.trimmed.isEmpty {
+                        CardImageView(source: card.coverBanner)
+                    }
                 }
-                if isEditing {
-                    imageMenu(for: .banner).padding(8)
+                .clipped()
+                .overlay(alignment: .topTrailing) {
+                    if isEditing {
+                        imageMenu(for: .banner).padding(8)
+                    }
                 }
-            }
-            .frame(height: 92)
-            .frame(maxWidth: .infinity)
-            .clipped()
             HStack {
                 ZStack(alignment: .bottomTrailing) {
                     avatar
@@ -153,16 +155,6 @@ struct CardPreviewView: View {
                 .stroke(theme.isDark ? .white.opacity(0.08) : Theme.border, lineWidth: 1)
         )
         .shadow(color: theme.accent.opacity(0.18), radius: 18, y: 10)
-        .alert("Apple Intelligence unavailable", isPresented: $showAIUnavailable) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    openURL(url)
-                }
-            }
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Turn on Apple Intelligence in Settings → Apple Intelligence & Siri, wait for the model download to finish, then try again.")
-        }
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .onChange(of: photoItem) {
             guard let item = photoItem else { return }
@@ -173,9 +165,6 @@ struct CardPreviewView: View {
                     applyImage(image)
                 }
             }
-        }
-        .aiImageSheet(isPresented: $showAISheet, concept: aiConcept) { image in
-            applyImage(image)
         }
     }
 
@@ -205,16 +194,6 @@ struct CardPreviewView: View {
         setImage("data:image/jpeg;base64," + data.base64EncodedString())
     }
 
-    private var aiConcept: String {
-        switch imageTarget {
-        case .avatar:
-            "Professional friendly avatar portrait for a digital business card"
-                + (card.fullName.trimmed.isEmpty ? "" : " of \(card.fullName)")
-        case .banner:
-            "Abstract professional header banner background, \(theme.label.lowercased()) tones, for a digital business card"
-        }
-    }
-
     /// Camera badge that opens an anchored menu right where it sits — no
     /// detached bottom sheet.
     private func imageMenu(for target: ImageTarget) -> some View {
@@ -224,12 +203,6 @@ struct CardPreviewView: View {
                 showPhotoPicker = true
             } label: {
                 Label("Choose from Photos", systemImage: "photo.on.rectangle")
-            }
-            Button {
-                imageTarget = target
-                requestAIGeneration()
-            } label: {
-                Label("Generate with Apple Intelligence", systemImage: "sparkles")
             }
             if !(target == .avatar ? card.profilePhoto : card.coverBanner).isEmpty {
                 Button(role: .destructive) {
@@ -249,33 +222,22 @@ struct CardPreviewView: View {
         .accessibilityLabel(target == .avatar ? "Change profile photo" : "Change banner image")
     }
 
-    /// Open Image Playground when the device can, otherwise explain how to
-    /// enable Apple Intelligence instead of silently hiding the option.
-    private func requestAIGeneration() {
-        if #available(iOS 18.1, *), ImagePlaygroundViewController.isAvailable {
-            showAISheet = true
-        } else {
-            showAIUnavailable = true
-        }
-    }
 
-    @ViewBuilder
     private var avatar: some View {
-        Group {
-            if !card.profilePhoto.trimmed.isEmpty {
-                CardImageView(source: card.profilePhoto)
-            } else {
-                ZStack {
-                    Circle().fill(theme.accent)
+        Circle()
+            .fill(theme.accent)
+            .frame(width: 68, height: 68)
+            .overlay {
+                if !card.profilePhoto.trimmed.isEmpty {
+                    CardImageView(source: card.profilePhoto)
+                } else {
                     Text(initials)
                         .font(.title2.bold())
                         .foregroundStyle(.white)
                 }
             }
-        }
-        .frame(width: 68, height: 68)
-        .clipShape(Circle())
-        .overlay(Circle().stroke(theme.surface, lineWidth: 4))
+            .clipShape(Circle())
+            .overlay(Circle().stroke(theme.surface, lineWidth: 4))
     }
 
     // ─── Structured address ─────────────────────────────────────────────────
@@ -451,37 +413,6 @@ struct CardImageView: View {
         let base64 = String(source[source.index(after: comma)...])
         guard let data = Data(base64Encoded: base64) else { return nil }
         return UIImage(data: data)
-    }
-}
-
-/// Availability-gated Image Playground sheet (Apple Intelligence image
-/// generation, iOS 18.1+). A no-op on devices without it.
-extension View {
-    @ViewBuilder
-    func aiImageSheet(isPresented: Binding<Bool>, concept: String,
-                      onImage: @escaping (UIImage) -> Void) -> some View {
-        if #available(iOS 18.1, *) {
-            modifier(AIImageSheet(isPresented: isPresented, concept: concept, onImage: onImage))
-        } else {
-            self
-        }
-    }
-}
-
-@available(iOS 18.1, *)
-private struct AIImageSheet: ViewModifier {
-    @Binding var isPresented: Bool
-    let concept: String
-    let onImage: (UIImage) -> Void
-
-    func body(content: Content) -> some View {
-        content.imagePlaygroundSheet(isPresented: $isPresented,
-                                     concepts: [.text(concept)]) { url in
-            if let data = try? Data(contentsOf: url),
-               let image = UIImage(data: data) {
-                onImage(image)
-            }
-        }
     }
 }
 
