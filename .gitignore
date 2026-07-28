@@ -22,3 +22,4 @@ Tapcard.xcodeproj/
 asc-*.png
 *.xcarchive
 client_*.apps.googleusercontent.com.plist
+client_secret_*.json
