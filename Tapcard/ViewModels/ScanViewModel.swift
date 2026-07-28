@@ -64,6 +64,7 @@ final class ScanViewModel {
                     parsedWithAI = true
                 }
             }
+            parsed.decomposeAddressIfNeeded()
             card = parsed
             stage = .review
         } catch {

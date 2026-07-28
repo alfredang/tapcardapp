@@ -127,6 +127,9 @@ extension TapcardAPI {
         var officePhone: String?
         var website: String?
         var address: String?
+        var bio: String?
+        var profilePhoto: String?
+        var coverBanner: String?
         var linkedin: String?
         var facebook: String?
         var instagram: String?
@@ -150,12 +153,16 @@ extension TapcardAPI {
             card.officePhone = officePhone ?? ""
             card.website = website ?? ""
             card.address = address ?? ""
+            card.bio = bio ?? ""
+            card.profilePhoto = profilePhoto ?? ""
+            card.coverBanner = coverBanner ?? ""
             card.linkedin = linkedin ?? ""
             card.facebook = facebook ?? ""
             card.instagram = instagram ?? ""
             card.twitter = twitter ?? ""
             card.theme = CardTheme(rawValue: theme ?? "") ?? .modern
             card.accentColor = accentColor ?? Constants.accentHex
+            card.decomposeAddressIfNeeded()
             return card
         }
     }
@@ -189,7 +196,10 @@ extension TapcardAPI {
             "mobile": card.mobile.trimmed,
             "officePhone": card.officePhone.trimmed,
             "website": website,
-            "address": card.address.trimmed,
+            "address": card.composedAddress,
+            "bio": String(card.bio.trimmed.prefix(1000)),
+            "profilePhoto": card.profilePhoto.trimmed,
+            "coverBanner": card.coverBanner.trimmed,
             "linkedin": card.linkedin.trimmed,
             "facebook": card.facebook.trimmed,
             "instagram": card.instagram.trimmed,

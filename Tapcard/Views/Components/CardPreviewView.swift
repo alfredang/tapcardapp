@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import ImagePlayground
 
 // ─── Per-theme design tokens ────────────────────────────────────────────────
 
@@ -30,8 +32,8 @@ extension CardTheme {
 /// A field on the card — used to jump from a tapped preview element straight
 /// to its form field.
 enum CardField: Hashable {
-    case fullName, jobTitle, company, email, mobile, officePhone,
-         website, address, linkedin, facebook, instagram
+    case fullName, jobTitle, company, email, mobile, officePhone, website,
+         addressLine1, addressLine2, zipcode, bio, linkedin, facebook, instagram
 }
 
 /// The digital card rendered natively, Blinq-style — a pure function of
@@ -44,15 +46,26 @@ enum CardField: Hashable {
 struct CardPreviewView: View {
     private let stored: BusinessCard
     private var editing: Binding<BusinessCard>?
+    /// The card's call-to-action. On the real card visitors tap "Save
+    /// Contact" to download the vCard; in the app the button always does
+    /// something real — save/publish/share — never a dead control.
+    private let ctaTitle: String
+    private let onCTA: (() -> Void)?
 
-    init(card: BusinessCard) {
+    init(card: BusinessCard, ctaTitle: String = "Save Contact",
+         onCTA: (() -> Void)? = nil) {
         stored = card
         editing = nil
+        self.ctaTitle = ctaTitle
+        self.onCTA = onCTA
     }
 
-    init(editing: Binding<BusinessCard>) {
+    init(editing: Binding<BusinessCard>, ctaTitle: String,
+         onCTA: @escaping () -> Void) {
         stored = editing.wrappedValue
         self.editing = editing
+        self.ctaTitle = ctaTitle
+        self.onCTA = onCTA
     }
 
     private var card: BusinessCard { editing?.wrappedValue ?? stored }
@@ -60,20 +73,40 @@ struct CardPreviewView: View {
 
     private var theme: CardTheme { card.theme }
 
+    // Image editing (photos / Apple Intelligence) + maps chooser state.
+    private enum ImageTarget { case avatar, banner }
+    @State private var imageTarget: ImageTarget = .avatar
+    @State private var showImageChooser = false
+    @State private var showPhotoPicker = false
+    @State private var photoItem: PhotosPickerItem?
+    @State private var showAISheet = false
+    @State private var showMapChooser = false
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Banner + overlapping avatar
-            theme.banner
-                .frame(height: 92)
-            HStack {
-                ZStack {
-                    Circle().fill(theme.accent)
-                    Text(initials)
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
+            // Banner + overlapping avatar (both replaceable while editing)
+            ZStack(alignment: .topTrailing) {
+                theme.banner
+                if !card.coverBanner.trimmed.isEmpty {
+                    CardImageView(source: card.coverBanner)
                 }
-                .frame(width: 68, height: 68)
-                .overlay(Circle().stroke(theme.surface, lineWidth: 4))
+                if isEditing {
+                    imageBadge { imageTarget = .banner; showImageChooser = true }
+                        .padding(8)
+                }
+            }
+            .frame(height: 92)
+            .frame(maxWidth: .infinity)
+            .clipped()
+            HStack {
+                ZStack(alignment: .bottomTrailing) {
+                    avatar
+                    if isEditing {
+                        imageBadge { imageTarget = .avatar; showImageChooser = true }
+                            .offset(x: 4, y: 4)
+                    }
+                }
                 Spacer()
             }
             .padding(.horizontal, 18)
@@ -85,33 +118,35 @@ struct CardPreviewView: View {
                            font: .title3.bold(), color: theme.textColor)
                 inlineText("Job title", \.jobTitle,
                            font: .subheadline, color: theme.subtextColor)
-                inlineText("Company", \.company,
-                           font: .subheadline, color: theme.subtextColor)
+                bioText
             }
             .padding(.horizontal, 18)
             .padding(.top, 10)
 
             // Contact rows — inline-editable too.
             VStack(alignment: .leading, spacing: 8) {
-                row("phone.fill", "Mobile",
-                    !isEditing && card.mobile.trimmed.isEmpty ? \.officePhone : \.mobile,
-                    keyboard: .phonePad)
+                row("building.2.fill", "Company", \.company)
+                row("iphone", "Mobile", \.mobile, keyboard: .phonePad)
+                row("phone.fill", "Landline", \.officePhone, keyboard: .phonePad)
                 row("envelope.fill", "Email", \.email, keyboard: .emailAddress)
                 row("globe", "Website", \.website, keyboard: .URL)
-                row("mappin.and.ellipse", "Address", \.address)
+                addressBlock
             }
             .padding(.horizontal, 18)
             .padding(.top, 12)
 
-            // The card's call-to-action, as visitors will see it.
-            Text("Save Contact")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 40)
-                .background(theme.banner, in: Capsule())
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
+            // The card's call-to-action. Tappable whenever a real action was
+            // provided; plain artwork otherwise.
+            Group {
+                if let onCTA {
+                    Button(action: onCTA) { ctaLabel }
+                        .buttonStyle(.plain)
+                } else {
+                    ctaLabel
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
         }
         .background(theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -120,6 +155,185 @@ struct CardPreviewView: View {
                 .stroke(theme.isDark ? .white.opacity(0.08) : Theme.border, lineWidth: 1)
         )
         .shadow(color: theme.accent.opacity(0.18), radius: 18, y: 10)
+        .confirmationDialog(imageTarget == .avatar ? "Profile photo" : "Banner image",
+                            isPresented: $showImageChooser, titleVisibility: .visible) {
+            Button("Choose from Photos") { showPhotoPicker = true }
+            if #available(iOS 18.1, *), ImagePlaygroundViewController.isAvailable {
+                Button("Generate with Apple Intelligence") { showAISheet = true }
+            }
+            if !currentImage.isEmpty {
+                Button("Remove image", role: .destructive) { setImage("") }
+            }
+        }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        .onChange(of: photoItem) {
+            guard let item = photoItem else { return }
+            photoItem = nil
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    applyImage(image)
+                }
+            }
+        }
+        .aiImageSheet(isPresented: $showAISheet, concept: aiConcept) { image in
+            applyImage(image)
+        }
+    }
+
+    // ─── Image editing ──────────────────────────────────────────────────────
+
+    private var currentImage: String {
+        imageTarget == .avatar ? card.profilePhoto : card.coverBanner
+    }
+
+    private func setImage(_ value: String) {
+        switch imageTarget {
+        case .avatar: editing?.wrappedValue.profilePhoto = value
+        case .banner: editing?.wrappedValue.coverBanner = value
+        }
+    }
+
+    /// Downscale, compress and store as a base64 data URL (the same format
+    /// the web builder uploads), keeping payloads well under the API cap.
+    private func applyImage(_ image: UIImage) {
+        let maxDim: CGFloat = imageTarget == .avatar ? 512 : 1400
+        let scale = min(1, maxDim / max(image.size.width, image.size.height))
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let resized = UIGraphicsImageRenderer(size: size).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        guard let data = resized.jpegData(compressionQuality: 0.8) else { return }
+        setImage("data:image/jpeg;base64," + data.base64EncodedString())
+    }
+
+    private var aiConcept: String {
+        switch imageTarget {
+        case .avatar:
+            "Professional friendly avatar portrait for a digital business card"
+                + (card.fullName.trimmed.isEmpty ? "" : " of \(card.fullName)")
+        case .banner:
+            "Abstract professional header banner background, \(theme.label.lowercased()) tones, for a digital business card"
+        }
+    }
+
+    private func imageBadge(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "camera.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 26, height: 26)
+                .background(.black.opacity(0.55), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Change image")
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
+        Group {
+            if !card.profilePhoto.trimmed.isEmpty {
+                CardImageView(source: card.profilePhoto)
+            } else {
+                ZStack {
+                    Circle().fill(theme.accent)
+                    Text(initials)
+                        .font(.title2.bold())
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .frame(width: 68, height: 68)
+        .clipShape(Circle())
+        .overlay(Circle().stroke(theme.surface, lineWidth: 4))
+    }
+
+    // ─── Structured address ─────────────────────────────────────────────────
+
+    /// Editing: line 1 / line 2 / postal code typed in place. Read-only: the
+    /// composed address, tappable to open Apple Maps or Google Maps.
+    @ViewBuilder
+    private var addressBlock: some View {
+        if isEditing {
+            HStack(alignment: .top, spacing: 10) {
+                addressChip
+                VStack(spacing: 6) {
+                    inlineText("Address line 1", \.addressLine1,
+                               font: .footnote, color: theme.textColor)
+                    inlineText("Address line 2", \.addressLine2,
+                               font: .footnote, color: theme.textColor)
+                    inlineText("Postal code", \.zipcode,
+                               font: .footnote, color: theme.textColor)
+                }
+            }
+        } else if !card.composedAddress.isEmpty {
+            Button {
+                showMapChooser = true
+            } label: {
+                HStack(spacing: 10) {
+                    addressChip
+                    Text(card.composedAddress)
+                        .font(.footnote)
+                        .foregroundStyle(theme.textColor)
+                        .multilineTextAlignment(.leading)
+                }
+            }
+            .buttonStyle(.plain)
+            .confirmationDialog("Open address in…", isPresented: $showMapChooser,
+                                titleVisibility: .visible) {
+                Button("Apple Maps") { openMaps(apple: true) }
+                Button("Google Maps") { openMaps(apple: false) }
+            }
+        }
+    }
+
+    private var addressChip: some View {
+        Image(systemName: "mappin.and.ellipse")
+            .font(.caption)
+            .foregroundStyle(theme.accent)
+            .frame(width: 30, height: 30)
+            .background(theme.chip, in: Circle())
+    }
+
+    private func openMaps(apple: Bool) {
+        let query = card.composedAddress
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let raw = apple
+            ? "https://maps.apple.com/?q=\(query)"
+            : "https://www.google.com/maps/search/?api=1&query=\(query)"
+        if let url = URL(string: raw) { openURL(url) }
+    }
+
+    private var ctaLabel: some View {
+        Text(ctaTitle)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .background(theme.banner, in: Capsule())
+    }
+
+    /// The short bio under the identity block — multiline, capped at 1000
+    /// characters while editing.
+    @ViewBuilder
+    private var bioText: some View {
+        if isEditing {
+            TextField("Short bio (up to 1000 characters)",
+                      text: Binding(
+                          get: { editing?.wrappedValue.bio ?? "" },
+                          set: { editing?.wrappedValue.bio = String($0.prefix(1000)) }
+                      ),
+                      axis: .vertical)
+                .font(.footnote)
+                .foregroundStyle(theme.subtextColor)
+                .lineLimit(1...5)
+                .padding(.top, 4)
+        } else if !card.bio.trimmed.isEmpty {
+            Text(card.bio)
+                .font(.footnote)
+                .foregroundStyle(theme.subtextColor)
+                .padding(.top, 4)
+        }
     }
 
     /// A binding into the edited card for one field.
@@ -178,6 +392,66 @@ struct CardPreviewView: View {
         let parts = card.fullName.trimmed.split(separator: " ").prefix(2)
         let letters = parts.compactMap(\.first).map(String.init).joined()
         return letters.isEmpty ? "T" : letters.uppercased()
+    }
+}
+
+// ─── Card imagery ───────────────────────────────────────────────────────────
+
+/// Renders a card image source — a base64 `data:` URL (uploaded/AI-generated)
+/// or a hosted https URL — filling its frame.
+struct CardImageView: View {
+    let source: String
+
+    var body: some View {
+        if let ui = Self.decode(source) {
+            Image(uiImage: ui).resizable().scaledToFill()
+        } else if source.hasPrefix("http"), let url = URL(string: source) {
+            AsyncImage(url: url) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Color.clear
+            }
+        }
+    }
+
+    /// Decode a `data:image/...;base64,` URL into a UIImage.
+    static func decode(_ source: String) -> UIImage? {
+        guard source.hasPrefix("data:"),
+              let comma = source.firstIndex(of: ",") else { return nil }
+        let base64 = String(source[source.index(after: comma)...])
+        guard let data = Data(base64Encoded: base64) else { return nil }
+        return UIImage(data: data)
+    }
+}
+
+/// Availability-gated Image Playground sheet (Apple Intelligence image
+/// generation, iOS 18.1+). A no-op on devices without it.
+extension View {
+    @ViewBuilder
+    func aiImageSheet(isPresented: Binding<Bool>, concept: String,
+                      onImage: @escaping (UIImage) -> Void) -> some View {
+        if #available(iOS 18.1, *) {
+            modifier(AIImageSheet(isPresented: isPresented, concept: concept, onImage: onImage))
+        } else {
+            self
+        }
+    }
+}
+
+@available(iOS 18.1, *)
+private struct AIImageSheet: ViewModifier {
+    @Binding var isPresented: Bool
+    let concept: String
+    let onImage: (UIImage) -> Void
+
+    func body(content: Content) -> some View {
+        content.imagePlaygroundSheet(isPresented: $isPresented,
+                                     concepts: [.text(concept)]) { url in
+            if let data = try? Data(contentsOf: url),
+               let image = UIImage(data: data) {
+                onImage(image)
+            }
+        }
     }
 }
 
@@ -240,9 +514,12 @@ struct CardFormFields: View {
             field("Email", text: $card.email, icon: "envelope", focus: .email,
                   keyboard: .emailAddress, required: true)
             field("Mobile", text: $card.mobile, icon: "iphone", focus: .mobile, keyboard: .phonePad)
-            field("Office phone", text: $card.officePhone, icon: "phone", focus: .officePhone, keyboard: .phonePad)
+            field("Landline", text: $card.officePhone, icon: "phone", focus: .officePhone, keyboard: .phonePad)
             field("Website", text: $card.website, icon: "globe", focus: .website, keyboard: .URL)
-            field("Address", text: $card.address, icon: "mappin.and.ellipse", focus: .address)
+            field("Address line 1", text: $card.addressLine1, icon: "mappin.and.ellipse", focus: .addressLine1)
+            field("Address line 2", text: $card.addressLine2, icon: "mappin", focus: .addressLine2)
+            field("Postal code", text: $card.zipcode, icon: "number", focus: .zipcode)
+            bioField
         }
 
         Section("Social") {
@@ -254,6 +531,42 @@ struct CardFormFields: View {
         Section("Design") {
             ThemeSwatchGrid(selection: $card.theme)
         }
+    }
+
+    /// Multiline bio, capped at 1000 characters with a live count.
+    private var bioField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .top) {
+                Image(systemName: "text.alignleft")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22)
+                TextField("Short bio",
+                          text: Binding(
+                              get: { card.bio },
+                              set: { card.bio = String($0.prefix(1000)) }
+                          ),
+                          axis: .vertical)
+                    .lineLimit(2...6)
+                    .focused(focus, equals: .bio)
+                if !card.bio.isEmpty {
+                    Button {
+                        card.bio = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear bio")
+                }
+            }
+            if !card.bio.isEmpty {
+                Text("\(card.bio.count)/1000")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .id(CardField.bio)
     }
 
     @ViewBuilder

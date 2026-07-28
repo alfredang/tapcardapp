@@ -66,7 +66,21 @@ struct BusinessCard: Codable, Equatable, Hashable {
     var mobile: String = ""
     var officePhone: String = ""
     var website: String = ""
+    /// The single address string the backend stores; composed from the
+    /// structured parts below when they're filled in.
     var address: String = ""
+    /// Short bio shown under the identity block (max 1000 characters).
+    var bio: String = ""
+
+    // Structured address entry (app-side; joined into `address` on the wire).
+    var addressLine1: String = ""
+    var addressLine2: String = ""
+    var zipcode: String = ""
+
+    /// Profile photo / cover banner — an https URL or a base64 `data:` URL
+    /// (uploaded or AI-generated image), same contract as the web builder.
+    var profilePhoto: String = ""
+    var coverBanner: String = ""
 
     var linkedin: String = ""
     var facebook: String = ""
@@ -80,6 +94,56 @@ struct BusinessCard: Codable, Equatable, Hashable {
     /// Required-field validity for enabling the "Create card" action.
     var isValid: Bool {
         !fullName.trimmed.isEmpty && email.trimmed.isValidEmail
+    }
+
+    /// The address as published: structured parts when present, else the raw
+    /// scanned string.
+    var composedAddress: String {
+        let parts = [addressLine1, addressLine2, zipcode].map(\.trimmed).filter { !$0.isEmpty }
+        return parts.isEmpty ? address.trimmed : parts.joined(separator: ", ")
+    }
+
+    /// Split a flat scanned/synced address into the structured fields (best
+    /// effort): a trailing chunk with 4+ digits becomes the postal code.
+    mutating func decomposeAddressIfNeeded() {
+        guard addressLine1.trimmed.isEmpty, addressLine2.trimmed.isEmpty,
+              zipcode.trimmed.isEmpty, !address.trimmed.isEmpty else { return }
+        var parts = address.components(separatedBy: ",").map(\.trimmed).filter { !$0.isEmpty }
+        if let last = parts.last, last.filter(\.isNumber).count >= 4 {
+            zipcode = last
+            parts.removeLast()
+        }
+        if !parts.isEmpty { addressLine1 = parts.removeFirst() }
+        addressLine2 = parts.joined(separator: ", ")
+    }
+
+    // Decode tolerantly: every key optional so cards persisted by any older
+    // build (or leaner server payloads) keep loading as fields are added.
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func str(_ key: CodingKeys) -> String { (try? c.decode(String.self, forKey: key)) ?? "" }
+        fullName = str(.fullName)
+        jobTitle = str(.jobTitle)
+        company = str(.company)
+        email = str(.email)
+        mobile = str(.mobile)
+        officePhone = str(.officePhone)
+        website = str(.website)
+        address = str(.address)
+        bio = str(.bio)
+        addressLine1 = str(.addressLine1)
+        addressLine2 = str(.addressLine2)
+        zipcode = str(.zipcode)
+        profilePhoto = str(.profilePhoto)
+        coverBanner = str(.coverBanner)
+        linkedin = str(.linkedin)
+        facebook = str(.facebook)
+        instagram = str(.instagram)
+        twitter = str(.twitter)
+        theme = (try? c.decode(CardTheme.self, forKey: .theme)) ?? .modern
+        accentColor = (try? c.decode(String.self, forKey: .accentColor)) ?? Constants.accentHex
     }
 }
 

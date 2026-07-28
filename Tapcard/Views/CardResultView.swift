@@ -30,7 +30,7 @@ struct CardResultView: View {
                 .padding(.top)
 
                 // The card itself — native, exactly as visitors see it.
-                CardPreviewView(card: card)
+                CardPreviewView(card: card) { showShare = true }
 
                 qrCard
 
@@ -107,6 +107,7 @@ struct CardResultView: View {
 
     private var shareItems: [Any] {
         var items: [Any] = [URL(string: result.card.url) ?? result.card.url as Any]
+        if let vcf = VCard.file(for: card, publicURL: result.card.url) { items.append(vcf) }
         if let qr = QRGenerator.image(for: result.card.url) { items.append(qr) }
         return items
     }

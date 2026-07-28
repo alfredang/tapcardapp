@@ -104,6 +104,9 @@ private struct OnboardRequest: Encodable {
     let officePhone: String?
     let website: String?
     let address: String?
+    let bio: String?
+    let profilePhoto: String?
+    let coverBanner: String?
     let linkedin: String?
     let facebook: String?
     let instagram: String?
@@ -123,7 +126,10 @@ private struct OnboardRequest: Encodable {
         mobile = opt(card.mobile)
         officePhone = opt(card.officePhone)
         website = opt(card.website)
-        address = opt(card.address)
+        address = opt(card.composedAddress)
+        bio = opt(card.bio)
+        profilePhoto = opt(card.profilePhoto)
+        coverBanner = opt(card.coverBanner)
         linkedin = opt(card.linkedin)
         facebook = opt(card.facebook)
         instagram = opt(card.instagram)

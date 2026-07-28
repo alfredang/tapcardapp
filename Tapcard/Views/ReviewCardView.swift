@@ -19,7 +19,10 @@ struct ReviewCardView: View {
             }
 
             Section {
-                CardPreviewView(editing: $model.card)
+                CardPreviewView(editing: $model.card,
+                                ctaTitle: "Create digital card") {
+                    Task { await model.submit(into: account) }
+                }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
 

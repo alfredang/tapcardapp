@@ -32,7 +32,9 @@ struct EditCardView: View {
             }
 
             Section {
-                CardPreviewView(editing: $card)
+                CardPreviewView(editing: $card, ctaTitle: "Save changes") {
+                    save()
+                }
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
 

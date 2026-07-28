@@ -26,7 +26,7 @@ struct SavedCardDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                CardPreviewView(card: details)
+                CardPreviewView(card: details) { showShare = true }
 
                 // Primary actions — edit is first-class: this is the app the
                 // card comes back to.
@@ -92,6 +92,9 @@ struct SavedCardDetailView: View {
 
     private var shareItems: [Any] {
         var items: [Any] = [URL(string: current.url) ?? current.url as Any]
+        // The vCard lets the recipient add the contact to their phone in one
+        // tap — usable straight away in WhatsApp, calls and SMS.
+        if let vcf = VCard.file(for: details, publicURL: current.url) { items.append(vcf) }
         if let qr = QRGenerator.image(for: current.url) { items.append(qr) }
         return items
     }
