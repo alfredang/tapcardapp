@@ -78,6 +78,10 @@ struct CardPreviewView: View {
     @State private var imageTarget: ImageTarget = .avatar
     @State private var showPhotoPicker = false
     @State private var photoItem: PhotosPickerItem?
+    /// "Paste image URL" — the typed URL and its prompt.
+    @State private var showImageURLPrompt = false
+    @State private var imageURLEntry = ""
+    @State private var imageURLError: String?
     @State private var showMapChooser = false
     @Environment(\.openURL) private var openURL
 
@@ -160,6 +164,22 @@ struct CardPreviewView: View {
         )
         .shadow(color: theme.accent.opacity(0.18), radius: 18, y: 10)
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        .alert("Paste image URL", isPresented: $showImageURLPrompt) {
+            TextField("https://…", text: $imageURLEntry)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button("Cancel", role: .cancel) {}
+            Button("Use image") { importImageURL() }
+        } message: {
+            Text("Save your LinkedIn photo, upload it anywhere public, and paste the link — or copy an image address straight from the web.")
+        }
+        .alert("Couldn't load that image",
+               isPresented: Binding(get: { imageURLError != nil },
+                                    set: { if !$0 { imageURLError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(imageURLError ?? "")
+        }
         .onChange(of: photoItem) {
             guard let item = photoItem else { return }
             photoItem = nil
@@ -198,6 +218,32 @@ struct CardPreviewView: View {
         setImage("data:image/jpeg;base64," + data.base64EncodedString())
     }
 
+    /// Fetch a pasted image URL and store it like any picked photo — the
+    /// bytes are downscaled into the card, so the card keeps working even if
+    /// the original link later disappears.
+    private func importImageURL() {
+        let raw = imageURLEntry.trimmed
+        guard !raw.isEmpty else { return }
+        let normalized = raw.lowercased().hasPrefix("http") ? raw : "https://" + raw
+        guard let url = URL(string: normalized) else {
+            imageURLError = "That doesn't look like a valid link."
+            return
+        }
+        Task {
+            do {
+                let (data, response) = try await URLSession.shared.data(from: url)
+                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+                      let image = UIImage(data: data) else {
+                    imageURLError = "That link didn't return an image. Try the direct image address, ending in .jpg or .png."
+                    return
+                }
+                applyImage(image)
+            } catch {
+                imageURLError = error.localizedDescription
+            }
+        }
+    }
+
     /// Camera badge that opens an anchored menu right where it sits — no
     /// detached bottom sheet.
     private func imageMenu(for target: ImageTarget) -> some View {
@@ -207,6 +253,23 @@ struct CardPreviewView: View {
                 showPhotoPicker = true
             } label: {
                 Label("Choose from Photos", systemImage: "photo.on.rectangle")
+            }
+            Button {
+                imageTarget = target
+                imageURLEntry = ""
+                showImageURLPrompt = true
+            } label: {
+                Label("Paste image URL", systemImage: "link")
+            }
+            // LinkedIn keeps profile photos behind OAuth, so we can't pull one
+            // silently — open the profile so the photo can be saved or copied,
+            // then imported with either option above.
+            if target == .avatar, let profile = WhatsAppLink.linkedInURL(for: card) {
+                Button {
+                    if let url = URL(string: profile) { openURL(url) }
+                } label: {
+                    Label("Open my LinkedIn photo", systemImage: "person.crop.square")
+                }
             }
             if !(target == .avatar ? card.profilePhoto : card.coverBanner).isEmpty {
                 Button(role: .destructive) {

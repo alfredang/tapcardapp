@@ -49,7 +49,8 @@ enum DemoSupport {
         [
             SavedCard(id: "demo1", fullName: "Jordan Avery", company: "Lumen Studio",
                       slug: "jordan-avery", url: "https://tapcard.tertiaryinfotech.com/c/jordan-avery",
-                      createdAt: Date(timeIntervalSince1970: 1_760_000_000)),
+                      createdAt: Date(timeIntervalSince1970: 1_760_000_000),
+                      details: demoCard),
             SavedCard(id: "demo2", fullName: "Mei Lin Tan", company: "Northwind Ventures",
                       slug: "mei-lin-tan", url: "https://tapcard.tertiaryinfotech.com/c/mei-lin-tan",
                       createdAt: Date(timeIntervalSince1970: 1_759_000_000)),

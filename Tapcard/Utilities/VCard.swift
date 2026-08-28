@@ -33,6 +33,12 @@ enum VCard {
         if let publicURL, !publicURL.isEmpty {
             lines.append("URL;TYPE=Tapcard:\(escape(publicURL))")
         }
+        // Social profiles: X-SOCIALPROFILE is what iOS Contacts reads into its
+        // "LinkedIn" row; the plain URL keeps other address books working.
+        if let linkedIn = WhatsAppLink.linkedInURL(for: card) {
+            lines.append("X-SOCIALPROFILE;TYPE=linkedin:\(escape(linkedIn))")
+            lines.append("URL;TYPE=LinkedIn:\(escape(linkedIn))")
+        }
         lines.append("END:VCARD")
 
         let text = lines.joined(separator: "\r\n") + "\r\n"

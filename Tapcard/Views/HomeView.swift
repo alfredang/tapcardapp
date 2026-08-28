@@ -1,26 +1,36 @@
 import SwiftUI
 
-/// Landing screen: a hero call-to-action to scan a business card, plus a list
-/// of digital cards already created on this device.
+/// Landing screen. Two states, driven by whether the account has a card yet:
+///
+/// - **Card published** — your identity leads: photo, name, designation, job
+///   title and contact rows, with the QR beneath it and Share / Edit in the
+///   thumb zone. Scanning a paper card moves to a secondary toolbar action;
+///   the big "scan a business card" pitch is gone once it's been answered.
+/// - **No card yet** — the scan hero and its call to action, as before.
 struct HomeView: View {
     @Environment(AccountStore.self) private var account
     @State private var showingScan = false
     @State private var editingCard: SavedCard?
     @State private var pendingDelete: SavedCard?
     @State private var deleteError: String?
+    @State private var showShare = false
 
     private var accent: Color { Color(hex: Constants.accentHex) }
+
+    /// The card that represents the user on this screen.
+    private var primaryCard: SavedCard? { account.cards.first }
 
     var body: some View {
         NavigationStack {
             List {
                 Group {
-                    // With a published card, your QR leads the screen — the
-                    // fastest way to get scanned in person (Blinq-style).
-                    if let first = account.cards.first {
-                        MyQRPanel(card: first)
+                    if let card = primaryCard {
+                        identityHeader(for: card)
+                        MyQRPanel(card: card)
+                        primaryActions(for: card)
+                    } else {
+                        hero
                     }
-                    hero
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(Color.clear)
@@ -30,8 +40,8 @@ struct HomeView: View {
                     emptyState
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                } else {
-                    myCardsSection
+                } else if account.cards.count > 1 {
+                    otherCardsSection
                 }
             }
             .listStyle(.insetGrouped)
@@ -64,6 +74,18 @@ struct HomeView: View {
             }
             .navigationTitle("Tapcard")
             .toolbar {
+                // With a card on file, scanning is a secondary tool — kept
+                // reachable for adding another card, out of the main flow.
+                if primaryCard != nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showingScan = true
+                        } label: {
+                            Image(systemName: "camera.viewfinder")
+                        }
+                        .accessibilityLabel("Scan a business card")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         SettingsView()
@@ -75,11 +97,72 @@ struct HomeView: View {
             .fullScreenCover(isPresented: $showingScan) {
                 ScanFlowView()
             }
+            .sheet(isPresented: $showShare) {
+                if let card = primaryCard {
+                    ShareSheet(items: shareItems(for: card))
+                }
+            }
             .onAppear {
                 if DemoSupport.startInReview || DemoSupport.startInDone { showingScan = true }
             }
         }
     }
+
+    // ─── Signed-in identity ─────────────────────────────────────────────────
+
+    /// The user's own card, rendered exactly as visitors see it.
+    private func identityHeader(for card: SavedCard) -> some View {
+        CardPreviewView(card: details(of: card), ctaTitle: "Share my card") {
+            showShare = true
+        }
+    }
+
+    /// Share / Edit, side by side in the thumb zone.
+    private func primaryActions(for card: SavedCard) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                editingCard = card
+            } label: {
+                actionLabel("Edit", icon: "pencil")
+            }
+            .buttonStyle(OutlineButtonStyle())
+
+            Button {
+                showShare = true
+            } label: {
+                actionLabel("Share", icon: "square.and.arrow.up")
+            }
+            .buttonStyle(GradientButtonStyle())
+        }
+    }
+
+    private func actionLabel(_ title: String, icon: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+            Text(title)
+        }
+        .font(.subheadline.weight(.semibold))
+    }
+
+    /// The full field set for a saved card, with a minimal fallback for cards
+    /// persisted before `details` existed.
+    private func details(of card: SavedCard) -> BusinessCard {
+        card.details ?? {
+            var c = BusinessCard()
+            c.fullName = card.fullName
+            c.company = card.company
+            return c
+        }()
+    }
+
+    private func shareItems(for card: SavedCard) -> [Any] {
+        var items: [Any] = [URL(string: card.url) ?? card.url as Any]
+        if let vcf = VCard.file(for: details(of: card), publicURL: card.url) { items.append(vcf) }
+        if let qr = QRGenerator.image(for: CardQRTarget(card: card).url) { items.append(qr) }
+        return items
+    }
+
+    // ─── No card yet ────────────────────────────────────────────────────────
 
     private var hero: some View {
         VStack(spacing: 16) {
@@ -121,9 +204,11 @@ struct HomeView: View {
         }
     }
 
-    private var myCardsSection: some View {
-        Section("My digital cards") {
-            ForEach(account.cards) { card in
+    /// Additional cards beyond the one on show — the primary card already
+    /// leads the screen, so it isn't repeated here.
+    private var otherCardsSection: some View {
+        Section("My other cards") {
+            ForEach(account.cards.dropFirst()) { card in
                 NavigationLink {
                     SavedCardDetailView(card: card)
                 } label: {
