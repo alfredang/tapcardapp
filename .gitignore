@@ -23,3 +23,9 @@ asc-*.png
 *.xcarchive
 client_*.apps.googleusercontent.com.plist
 client_secret_*.json
+
+# Distribution archives (rebuildable — never pushed to GitHub)
+*.zip
+
+# Source material the project was derived from — not ours to republish.
+**/reference/

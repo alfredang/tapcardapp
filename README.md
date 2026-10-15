@@ -44,6 +44,19 @@ sets up your account, and publishes a live digital card with a QR code — backe
 Everything scanning/OCR is **on-device**; only the card you choose to publish is sent to
 your account.
 
+### Share & settings (mobile-first)
+
+- **Smart QR** — switch between **WhatsApp** (scanning opens a chat with you, your card
+  underneath), **LinkedIn** and your **card link**; the default lives in Settings.
+- **Country code** — local numbers like `9698 3731` get your dialling code, so WhatsApp,
+  `tel:` links and vCards connect internationally instead of failing as "invalid number".
+- **Card design** — all 20 designs plus an accent colour, with a live preview; saves
+  instantly to your web card.
+- **Synced with the web** — Settings read and write the same account preferences as
+  [tapcard.tertiaryinfotech.com/settings](https://tapcard.tertiaryinfotech.com/settings)
+  (`/api/mobile/settings`), and keep working offline.
+- **Face ID lock** — optionally require Face ID to unlock your account on this device.
+
 ---
 
 ## Tech stack

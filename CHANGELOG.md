@@ -3,6 +3,29 @@
 All notable changes to Tapcard (iOS) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com).
 
+## [1.6] — 2026-10-15 · build 9
+
+### Added
+- Settings → Card design: 20 designs and an accent colour with a live preview,
+  saved instantly to the web card.
+- Settings → Sharing: default country code, what the QR opens (WhatsApp / LinkedIn /
+  Card) and the WhatsApp number — synced with the web via `/api/mobile/settings`.
+- QR panel switcher (WhatsApp / LinkedIn / Card link); a missing LinkedIn profile or
+  number can be added inline.
+- Cards tab leads with your digital card and WhatsApp QR once a card exists.
+- Includes the 1.5 (build 8) work: card designs, profile photo, Google sign-in,
+  Face ID lock.
+
+### Fixed
+- WhatsApp QR no longer fails with "phone number shared via url is invalid": local
+  numbers get the account's country code ("96983731" → +65 9698 3731); `tel:` links
+  and vCards are international.
+- Custom accents render the same as on the web; the legacy default violets mean
+  "match design".
+
+### App Store
+- 2026-10-15: 1.6 (9) submitted for review.
+
 ## [1.1] — 2026-07-21 · build 3
 
 ### Added
