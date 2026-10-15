@@ -42,6 +42,9 @@ enum DemoSupport {
         c.address = "71 Ayer Rajah Crescent, Singapore"
         c.linkedin = "linkedin.com/in/jordanavery"
         c.theme = .modern
+        if seedCards, let photo = ProcessInfo.processInfo.environment["TAPCARD_DEMO_PHOTO"] {
+            c.profilePhoto = photo
+        }
         return c
     }
 

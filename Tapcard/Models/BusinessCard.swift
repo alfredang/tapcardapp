@@ -92,7 +92,22 @@ struct BusinessCard: Codable, Equatable, Hashable {
     var twitter: String = ""
 
     var theme: CardTheme = .modern
-    var accentColor: String = Constants.accentHex
+    /// Custom accent (hex), or "" to match the design. Synced with the web,
+    /// which renders it the same way (resolveAccent in src/lib/card.ts).
+    var accentColor: String = ""
+
+    /// Empty, or one of the violets older builds (and the web builder) stamped
+    /// on every new card without the owner choosing it — both mean "use the
+    /// design's own accent".
+    static func isAutoAccent(_ hex: String) -> Bool {
+        let value = hex.trimmed.lowercased()
+        return value.isEmpty || value == "#6a47f5" || value == "#7c5cff"
+    }
+
+    /// The accent the card renders with, as hex — nil means the theme's.
+    var customAccentHex: String? {
+        Self.isAutoAccent(accentColor) ? nil : accentColor
+    }
 
     /// Required-field validity for enabling the "Create card" action.
     var isValid: Bool {
@@ -151,7 +166,8 @@ struct BusinessCard: Codable, Equatable, Hashable {
         instagram = str(.instagram)
         twitter = str(.twitter)
         theme = (try? c.decode(CardTheme.self, forKey: .theme)) ?? .modern
-        accentColor = (try? c.decode(String.self, forKey: .accentColor)) ?? Constants.accentHex
+        let accent = (try? c.decode(String.self, forKey: .accentColor)) ?? ""
+        accentColor = Self.isAutoAccent(accent) ? "" : accent
     }
 }
 

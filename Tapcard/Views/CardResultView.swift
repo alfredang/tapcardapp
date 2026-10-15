@@ -107,7 +107,8 @@ struct CardResultView: View {
 
     private var shareItems: [Any] {
         var items: [Any] = [URL(string: result.card.url) ?? result.card.url as Any]
-        if let vcf = VCard.file(for: card, publicURL: result.card.url) { items.append(vcf) }
+        if let vcf = VCard.file(for: card, publicURL: result.card.url,
+                                countryCode: account.preferences.countryCode) { items.append(vcf) }
         if let qr = QRGenerator.image(for: result.card.url) { items.append(qr) }
         return items
     }

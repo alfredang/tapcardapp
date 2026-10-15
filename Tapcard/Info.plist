@@ -31,10 +31,14 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>GIDClientID</key>
 	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
+	<key>GIDServerClientID</key>
+	<string>$(GOOGLE_SERVER_CLIENT_ID)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Allow camera access to scan business cards.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID to securely unlock your Tapcard account on this device.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow photo access to import a business card image.</string>
 	<key>UILaunchScreen</key>

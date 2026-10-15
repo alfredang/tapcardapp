@@ -12,12 +12,39 @@ extension CardTheme {
         }
     }
 
-    var accent: Color { Color(hex: gradientHexes.start) }
+    var accent: Color {
+        switch self {
+        case .minimalist: Color(hex: "#111111")
+        case .dark: Color(hex: "#22D3EE")
+        case .midnight: Color(hex: "#38BDF8")
+        case .graphite: Color(hex: "#D4D4D8")
+        case .lavender: Color(hex: "#7C3AED")
+        case .mint: Color(hex: "#047857")
+        case .peach: Color(hex: "#C2410C")
+        default: Color(hex: gradientHexes.start)
+        }
+    }
 
     var banner: LinearGradient {
         LinearGradient(colors: [Color(hex: gradientHexes.start),
                                 Color(hex: gradientHexes.end)],
                        startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    var actionGradient: LinearGradient {
+        let solid: String?
+        switch self {
+        case .minimalist: solid = "#111111"
+        case .amber: solid = "#B45309"
+        case .lavender: solid = "#7C3AED"
+        case .mint: solid = "#047857"
+        case .peach: solid = "#C2410C"
+        case .sky: solid = "#0369A1"
+        case .dark: solid = "#26262E"
+        case .graphite: solid = "#F4F4F5"
+        default: solid = nil
+        }
+        return solid.map { LinearGradient(colors: [Color(hex: $0), Color(hex: $0)], startPoint: .leading, endPoint: .trailing) } ?? banner
     }
 
     var surface: Color { isDark ? Color(hex: "#17171D") : .white }
@@ -72,6 +99,11 @@ struct CardPreviewView: View {
     private var isEditing: Bool { editing != nil }
 
     private var theme: CardTheme { card.theme }
+    /// The owner's custom accent when set, else the design's own — the same
+    /// rule the web card uses, so app and web always match.
+    private var accent: Color { card.customAccentHex.map { Color(hex: $0) } ?? theme.accent }
+    private var chip: Color { accent.opacity(theme.isDark ? 0.22 : 0.10) }
+    @Environment(\.dialCountryCode) private var countryCode
 
     // Image editing (photo library) + maps chooser state.
     private enum ImageTarget { case avatar, banner }
@@ -91,9 +123,9 @@ struct CardPreviewView: View {
             // Images render as overlays: overlay content has no say in
             // layout, so a huge photo can't inflate the row height.
             Color.clear
-                .frame(height: 92)
+                .frame(height: 136)
                 .frame(maxWidth: .infinity)
-                .background(theme.banner)
+                .background(CardDesignBanner(theme: theme))
                 .overlay {
                     if !card.coverBanner.trimmed.isEmpty {
                         CardImageView(source: card.coverBanner)
@@ -106,6 +138,7 @@ struct CardPreviewView: View {
                     }
                 }
             HStack {
+                Spacer()
                 ZStack(alignment: .bottomTrailing) {
                     avatar
                     if isEditing {
@@ -115,18 +148,20 @@ struct CardPreviewView: View {
                 Spacer()
             }
             .padding(.horizontal, 18)
-            .padding(.top, -34)
+            .padding(.top, -58)
 
             // Identity — in editing mode every line is typed in place.
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .center, spacing: 5) {
                 inlineText("Your Name", \.fullName,
-                           font: .title3.bold(), color: theme.textColor)
+                           font: theme.identityFont, color: theme.textColor)
                 inlineText("Job title", \.jobTitle,
                            font: .subheadline, color: theme.subtextColor)
                 inlineText("Tagline", \.tagline,
-                           font: .footnote.italic(), color: theme.accent)
+                           font: .footnote.italic(), color: accent)
                 bioText
             }
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, 18)
             .padding(.top, 10)
 
@@ -157,12 +192,12 @@ struct CardPreviewView: View {
             .padding(.vertical, 14)
         }
         .background(theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous)
                 .stroke(theme.isDark ? .white.opacity(0.08) : Theme.border, lineWidth: 1)
         )
-        .shadow(color: theme.accent.opacity(0.18), radius: 18, y: 10)
+        .shadow(color: accent.opacity(0.18), radius: 18, y: 10)
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .alert("Paste image URL", isPresented: $showImageURLPrompt) {
             TextField("https://…", text: $imageURLEntry)
@@ -184,10 +219,14 @@ struct CardPreviewView: View {
             guard let item = photoItem else { return }
             photoItem = nil
             Task {
-                if let data = try? await item.loadTransferable(type: Data.self),
-                   let image = UIImage(data: data) {
+                do {
+                    guard let data = try await item.loadTransferable(type: Data.self),
+                          let image = UIImage(data: data) else {
+                        imageURLError = "Choose a supported photo and try again."
+                        return
+                    }
                     applyImage(image)
-                }
+                } catch { imageURLError = "Couldn't import that photo. Try again." }
             }
         }
     }
@@ -211,7 +250,9 @@ struct CardPreviewView: View {
         let maxDim: CGFloat = imageTarget == .avatar ? 512 : 1400
         let scale = min(1, maxDim / max(image.size.width, image.size.height))
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        let resized = UIGraphicsImageRenderer(size: size).image { _ in
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
         guard let data = resized.jpegData(compressionQuality: 0.8) else { return }
@@ -283,7 +324,7 @@ struct CardPreviewView: View {
             Image(systemName: "camera.fill")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 26, height: 26)
+                .frame(width: 44, height: 44)
                 .background(.black.opacity(0.55), in: Circle())
         }
         .accessibilityLabel(target == .avatar ? "Change profile photo" : "Change banner image")
@@ -292,15 +333,15 @@ struct CardPreviewView: View {
 
     private var avatar: some View {
         Circle()
-            .fill(theme.accent)
-            .frame(width: 68, height: 68)
+            .fill(accent)
+            .frame(width: 116, height: 116)
             .overlay {
                 if !card.profilePhoto.trimmed.isEmpty {
                     CardImageView(source: card.profilePhoto)
                 } else {
                     Text(initials)
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
+                        .font(.largeTitle.bold())
+                        .foregroundStyle(theme.isDark ? .black : .white)
                 }
             }
             .clipShape(Circle())
@@ -349,9 +390,9 @@ struct CardPreviewView: View {
     private var addressChip: some View {
         Image(systemName: "mappin.and.ellipse")
             .font(.caption)
-            .foregroundStyle(theme.accent)
+            .foregroundStyle(accent)
             .frame(width: 30, height: 30)
-            .background(theme.chip, in: Circle())
+            .background(chip, in: Circle())
     }
 
     private func openMaps(apple: Bool) {
@@ -366,10 +407,10 @@ struct CardPreviewView: View {
     private var ctaLabel: some View {
         Text(ctaTitle)
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(theme == .luxury || theme == .graphite ? .black : .white)
             .frame(maxWidth: .infinity)
             .frame(height: 40)
-            .background(theme.banner, in: Capsule())
+            .background(theme.actionGradient, in: Capsule())
     }
 
     /// The short bio under the identity block — multiline, capped at 1000
@@ -460,9 +501,9 @@ struct CardPreviewView: View {
             } else {
                 Image(systemName: icon)
                     .font(.caption)
-                    .foregroundStyle(theme.accent)
+                    .foregroundStyle(accent)
                     .frame(width: 30, height: 30)
-                    .background(theme.chip, in: Circle())
+                    .background(chip, in: Circle())
             }
             inlineText(placeholder, keyPath,
                        font: .footnote, color: theme.textColor,
@@ -481,11 +522,11 @@ struct CardPreviewView: View {
         case \.email:
             return URL(string: "mailto:\(value)")
         case \.mobile, \.officePhone:
-            let digits = value.filter { $0.isNumber || $0 == "+" }
-            return digits.isEmpty ? nil : URL(string: "tel:\(digits)")
+            let number = PhoneNumber.international(value, countryCode: countryCode)
+            return number.isEmpty ? nil : URL(string: "tel:\(number)")
         case \.whatsapp:
-            // wa.me wants digits only, no + or spaces.
-            let digits = value.filter(\.isNumber)
+            // wa.me wants the full international number, digits only.
+            let digits = PhoneNumber.internationalDigits(value, countryCode: countryCode)
             return digits.isEmpty ? nil : URL(string: "https://wa.me/\(digits)")
         default:
             return nil
@@ -536,30 +577,37 @@ struct ThemeSwatchGrid: View {
     @Binding var selection: CardTheme
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4),
-                  spacing: 12) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 138), spacing: 12)], spacing: 14) {
             ForEach(CardTheme.allCases) { theme in
                 Button {
                     withAnimation(.snappy(duration: 0.2)) { selection = theme }
                 } label: {
-                    VStack(spacing: 4) {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(theme.banner)
-                            .frame(height: 34)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .stroke(selection == theme ? Theme.primary : .clear,
-                                            lineWidth: 2.5)
-                            )
-                        Text(theme.label)
-                            .font(.caption2)
-                            .foregroundStyle(selection == theme
-                                             ? Theme.primary : Theme.mutedForeground)
-                            .lineLimit(1)
+                    VStack(spacing: 0) {
+                        CardDesignBanner(theme: theme).frame(height: 64)
+                        Circle().fill(theme.accent)
+                            .frame(width: 38, height: 38)
+                            .overlay(Image(systemName: "person.fill").foregroundStyle(theme.isDark ? .black : .white))
+                            .overlay(Circle().stroke(theme.surface, lineWidth: 3))
+                            .padding(.top, -19)
+                        Text(theme.designName).font(.subheadline.weight(.semibold))
+                            .foregroundStyle(theme.textColor).padding(.top, 5)
+                        Text(theme.label).font(.caption).foregroundStyle(theme.subtextColor)
+                            .padding(.bottom, 12)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .background(theme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius))
+                    .overlay(RoundedRectangle(cornerRadius: theme.cornerRadius)
+                        .stroke(selection == theme ? Theme.primary : Theme.border, lineWidth: selection == theme ? 3 : 1))
+                    .overlay(alignment: .topTrailing) {
+                        if selection == theme {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.white, Theme.primary).padding(7)
+                        }
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(theme.label) theme")
+                .accessibilityLabel("\(theme.designName), \(theme.label) design")
                 .accessibilityAddTraits(selection == theme ? .isSelected : [])
             }
         }
@@ -603,7 +651,7 @@ struct CardFormFields: View {
             field("Instagram", text: $card.instagram, icon: "camera", focus: .instagram)
         }
 
-        Section("Design") {
+        Section("Choose a design · 20 templates") {
             ThemeSwatchGrid(selection: $card.theme)
         }
     }

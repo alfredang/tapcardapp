@@ -2,27 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Export an App Store build for upload via altool / Transporter.
-	     Manual signing with the API-created distribution cert + profile, since
-	     this Apple ID lacks cloud-managed distribution-certificate access. -->
+	<key>destination</key>
+	<string>export</string>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
 	<key>method</key>
-	<string>app-store</string>
-	<key>teamID</key>
-	<string>GU9WTSTX9M</string>
-	<key>signingStyle</key>
-	<string>manual</string>
-	<key>signingCertificate</key>
-	<string>Apple Distribution: Alfred Ang (GU9WTSTX9M)</string>
+	<string>app-store-connect</string>
 	<key>provisioningProfiles</key>
 	<dict>
 		<key>com.tertiaryinfotech.tapcard</key>
-		<string>Tapcard App Store</string>
+		<string>Tapcard App Store v3</string>
 	</dict>
-	<key>destination</key>
-	<string>export</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution: Alfred Ang (GU9WTSTX9M)</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>teamID</key>
+	<string>GU9WTSTX9M</string>
 	<key>uploadSymbols</key>
 	<true/>
-	<key>manageAppVersionAndBuildNumber</key>
-	<false/>
 </dict>
 </plist>

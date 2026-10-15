@@ -30,6 +30,46 @@ final class AccountStore {
 
     var isSignedIn: Bool { token != nil }
 
+    /// Synced account preferences (Settings → Sharing). Cached so the QR and
+    /// phone links are right offline; refreshed from the server on launch.
+    private(set) var preferences = UserPreferences()
+    private let preferencesKey = "tapcard.preferences"
+    private let preferencesDirtyKey = "tapcard.preferencesDirty"
+    private(set) var biometricEnabled = false
+    private(set) var isUnlocking = false
+    var needsBiometricUnlock: Bool { biometricEnabled && token == nil }
+
+    func setBiometricEnabled(_ enabled: Bool) async throws {
+        let context = try await BiometricAuthService.authenticate()
+        if enabled {
+            guard let token else { return }
+            try KeychainStore.setBiometricToken(token)
+            KeychainStore.delete("token")
+            biometricEnabled = true
+        } else {
+            let restored = try KeychainStore.biometricToken(context: context)
+            KeychainStore.set(restored, for: "token")
+            KeychainStore.delete("biometricToken")
+            biometricEnabled = false
+        }
+    }
+
+    func lockSession() {
+        guard biometricEnabled, !isUnlocking else { return }
+        cardsGeneration += 1
+        token = nil
+    }
+
+    func unlockSession() async throws {
+        guard !isUnlocking else { return }
+        isUnlocking = true
+        defer { isUnlocking = false }
+        let context = try await BiometricAuthService.authenticate()
+        token = try KeychainStore.biometricToken(context: context)
+        await refreshServerCards()
+        await refreshPreferences()
+    }
+
     private let cardsKey = "tapcard.savedCards"
     private let emailKey = "tapcard.email"
 
@@ -42,8 +82,13 @@ final class AccountStore {
             return
         }
         email = UserDefaults.standard.string(forKey: emailKey)
-        token = KeychainStore.get("token")
+        biometricEnabled = KeychainStore.hasBiometricToken
+        token = biometricEnabled ? nil : KeychainStore.get("token")
         userName = UserDefaults.standard.string(forKey: "tapcard.userName")
+        if let data = UserDefaults.standard.data(forKey: preferencesKey),
+           let saved = try? JSONDecoder().decode(UserPreferences.self, from: data) {
+            preferences = saved
+        }
         if let data = UserDefaults.standard.data(forKey: cardsKey),
            let decoded = try? JSONDecoder().decode([SavedCard].self, from: data) {
             cards = decoded.sorted { $0.createdAt > $1.createdAt }
@@ -52,13 +97,105 @@ final class AccountStore {
 
     /// Store a successful login / register / OTP-verify session.
     func startSession(_ result: AuthResult) {
+        cardsGeneration += 1
+        KeychainStore.delete("biometricToken")
+        biometricEnabled = false
         token = result.token
         userName = result.name
         email = result.email ?? email
         KeychainStore.set(result.token, for: "token")
         if let email { UserDefaults.standard.set(email, forKey: emailKey) }
         if let name = result.name { UserDefaults.standard.set(name, forKey: "tapcard.userName") }
-        Task { await refreshServerCards() }
+        Task {
+            await refreshServerCards()
+            await refreshPreferences()
+        }
+    }
+
+    // ─── Preferences (synced with the web's /settings) ──────────────────────
+
+    /// Pull the account's preferences. A change made offline is pushed first,
+    /// so it isn't overwritten by the server's older copy.
+    func refreshPreferences() async {
+        guard let token, !DemoSupport.seedCards else { return }
+        if UserDefaults.standard.bool(forKey: preferencesDirtyKey) {
+            let local: [String: Any] = ["countryCode": preferences.countryCode, "qrMode": preferences.qrMode.rawValue]
+            guard (try? await TapcardAPI.updateSettings(token: token, local)) != nil else { return }
+            UserDefaults.standard.set(false, forKey: preferencesDirtyKey)
+        }
+        guard let server = try? await TapcardAPI.fetchSettings(token: token), self.token == token else { return }
+        preferences = server
+        persistPreferences()
+    }
+
+    /// Apply a preference change immediately (it works offline — the QR
+    /// switch at an event can't wait on signal), then sync it to the account.
+    /// Returns an error message when the sync failed; it's retried on the
+    /// next refresh.
+    func updatePreferences(countryCode: String? = nil, qrMode: QRMode? = nil) async -> String? {
+        var changes: [String: Any] = [:]
+        if let countryCode { preferences.countryCode = countryCode; changes["countryCode"] = countryCode }
+        if let qrMode { preferences.qrMode = qrMode; changes["qrMode"] = qrMode.rawValue }
+        persistPreferences()
+        guard let token, !changes.isEmpty, !DemoSupport.seedCards else { return nil }
+        do {
+            let saved = try await TapcardAPI.updateSettings(token: token, changes)
+            UserDefaults.standard.set(false, forKey: preferencesDirtyKey)
+            preferences = saved
+            persistPreferences()
+            return nil
+        } catch {
+            UserDefaults.standard.set(true, forKey: preferencesDirtyKey)
+            return "Saved on this device; it will sync to your account when you're back online. (\(error.localizedDescription))"
+        }
+    }
+
+    private func persistPreferences() {
+        if let data = try? JSONEncoder().encode(preferences) {
+            UserDefaults.standard.set(data, forKey: preferencesKey)
+        }
+    }
+
+    // ─── Card edits from outside the editor ────────────────────────────────
+
+    /// Change a card's design and accent — live in the app at once, then
+    /// saved to the server so the web card matches. Returns an error message
+    /// (and reverts) on failure.
+    func updateDesign(of cardID: String, theme: CardTheme, accentColor: String) async -> String? {
+        guard let index = cards.firstIndex(where: { $0.id == cardID }) else { return nil }
+        let previous = cards[index].details
+        var details = previous ?? BusinessCard()
+        details.theme = theme
+        details.accentColor = accentColor
+        cardsGeneration += 1
+        cards[index].details = details
+        persist()
+        guard let token, !DemoSupport.seedCards else { return nil }
+        do {
+            try await TapcardAPI.updateCardDesign(token: token, id: cardID, theme: theme, accentColor: accentColor)
+            return nil
+        } catch {
+            if let i = cards.firstIndex(where: { $0.id == cardID }) { cards[i].details = previous }
+            persist()
+            return error.localizedDescription
+        }
+    }
+
+    /// Save a full card (e.g. a LinkedIn profile added from the QR panel).
+    func saveCard(_ cardID: String, details: BusinessCard) async -> String? {
+        guard let token else { return "You're signed out. Sign in again to edit." }
+        do {
+            try await TapcardAPI.updateCard(token: token, id: cardID, card: details)
+            if let i = cards.firstIndex(where: { $0.id == cardID }) {
+                cardsGeneration += 1
+                cards[i].details = details
+                persist()
+            }
+            await refreshServerCards()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
     }
 
     /// Bumped by every local mutation (delete/publish); a refresh whose fetch
@@ -73,7 +210,7 @@ final class AccountStore {
         cardsGeneration += 1
         let generation = cardsGeneration
         guard let server = try? await TapcardAPI.fetchCards(token: token) else { return }
-        guard generation == cardsGeneration else { return } // superseded mid-flight
+        guard generation == cardsGeneration, self.token == token else { return } // superseded mid-flight
         let mapped = server.map { c in
             SavedCard(id: c.id, fullName: c.fullName, company: c.company ?? "",
                       slug: c.slug ?? "", url: c.publicURL, createdAt: Date(),
@@ -153,10 +290,16 @@ final class AccountStore {
     /// Clear all locally-held account state: the email, the saved cards, and the
     /// Keychain credentials. Returns the app to its "no account yet" state.
     func signOut() {
+        cardsGeneration += 1
+        biometricEnabled = false
+        KeychainStore.delete("biometricToken")
         email = nil
         token = nil
         userName = nil
         cards = []
+        preferences = UserPreferences()
+        UserDefaults.standard.removeObject(forKey: preferencesKey)
+        UserDefaults.standard.removeObject(forKey: preferencesDirtyKey)
         UserDefaults.standard.removeObject(forKey: emailKey)
         UserDefaults.standard.removeObject(forKey: cardsKey)
         UserDefaults.standard.removeObject(forKey: "tapcard.userName")

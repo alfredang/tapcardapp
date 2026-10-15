@@ -50,7 +50,8 @@ enum GoogleAuthService {
             return .failure("Couldn't present Google sign-in. Try again.")
         }
 
-        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID,
+            serverClientID: Bundle.main.object(forInfoDictionaryKey: "GIDServerClientID") as? String)
 
         do {
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenter)

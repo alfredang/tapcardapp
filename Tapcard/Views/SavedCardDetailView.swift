@@ -78,7 +78,7 @@ struct SavedCardDetailView: View {
             ShareSheet(items: shareItems)
         }
         .fullScreenCover(isPresented: $showQR) {
-            QRShareView(card: current)
+            QRShareView(card: current, initialMode: account.preferences.qrMode)
         }
     }
 
@@ -94,7 +94,8 @@ struct SavedCardDetailView: View {
         var items: [Any] = [URL(string: current.url) ?? current.url as Any]
         // The vCard lets the recipient add the contact to their phone in one
         // tap — usable straight away in WhatsApp, calls and SMS.
-        if let vcf = VCard.file(for: details, publicURL: current.url) { items.append(vcf) }
+        if let vcf = VCard.file(for: details, publicURL: current.url,
+                                countryCode: account.preferences.countryCode) { items.append(vcf) }
         if let qr = QRGenerator.image(for: current.url) { items.append(qr) }
         return items
     }

@@ -157,8 +157,12 @@ struct HomeView: View {
 
     private func shareItems(for card: SavedCard) -> [Any] {
         var items: [Any] = [URL(string: card.url) ?? card.url as Any]
-        if let vcf = VCard.file(for: details(of: card), publicURL: card.url) { items.append(vcf) }
-        if let qr = QRGenerator.image(for: CardQRTarget(card: card).url) { items.append(qr) }
+        let prefs = account.preferences
+        if let vcf = VCard.file(for: details(of: card), publicURL: card.url,
+                                countryCode: prefs.countryCode) { items.append(vcf) }
+        if let link = CardQRTarget(card: card, mode: prefs.qrMode, countryCode: prefs.countryCode).url
+            ?? CardQRTarget(card: card, mode: .card, countryCode: prefs.countryCode).url,
+           let qr = QRGenerator.image(for: link) { items.append(qr) }
         return items
     }
 

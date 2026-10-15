@@ -43,6 +43,12 @@ extension TapcardAPI {
         return data
     }
 
+    /// Token-authenticated call for endpoints defined in other files.
+    static func authorizedRequest(_ method: String, _ path: String, token: String,
+                                  body: [String: Any]? = nil) async throws -> Data {
+        try await request(method, path, token: token, body: body)
+    }
+
     private struct WireError: Codable { let error: String? }
 
     private static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
@@ -165,7 +171,7 @@ extension TapcardAPI {
             card.instagram = instagram ?? ""
             card.twitter = twitter ?? ""
             card.theme = CardTheme(rawValue: theme ?? "") ?? .modern
-            card.accentColor = accentColor ?? Constants.accentHex
+            card.accentColor = BusinessCard.isAutoAccent(accentColor ?? "") ? "" : (accentColor ?? "")
             card.decomposeAddressIfNeeded()
             return card
         }
@@ -214,6 +220,13 @@ extension TapcardAPI {
             "accentColor": card.accentColor,
         ]
         _ = try await request("PATCH", "/api/mobile/cards/\(id)", token: token, body: body)
+    }
+
+    /// Change only a card's look (design + accent) — what Settings → Card
+    /// design saves on every tap, without resending every field.
+    static func updateCardDesign(token: String, id: String, theme: CardTheme, accentColor: String) async throws {
+        _ = try await request("PATCH", "/api/mobile/cards/\(id)", token: token,
+                              body: ["theme": theme.rawValue, "accentColor": accentColor])
     }
 
     // ─── Contacts sync ──────────────────────────────────────────────────────
