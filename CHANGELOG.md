@@ -3,6 +3,22 @@
 All notable changes to Tapcard (iOS) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com).
 
+## [1.6.1] — 2026-10-16 · build 10
+
+### Fixed
+- Settings → Card design: picking a design no longer snaps back. Cards published
+  while signed in now go to the signed-in account (the publish call sends the
+  session token), and a card that was filed under another account (e.g. its own
+  email, after an Apple sign-in) is re-published to this account on the first
+  design or detail save instead of failing with "Not found".
+- A failed design save now shows an alert, not a note scrolled out of view.
+
+### Changed
+- Settings no longer shows the account header (initial avatar + Apple relay email).
+
+### App Store
+- 2026-10-16: 1.6.1 (10) submitted for review.
+
 ## [1.6] — 2026-10-15 · build 9
 
 ### Added

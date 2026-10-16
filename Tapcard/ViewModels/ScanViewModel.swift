@@ -99,7 +99,7 @@ final class ScanViewModel {
             return
         }
         do {
-            let response = try await TapcardAPI.onboard(card)
+            let response = try await TapcardAPI.onboard(card, token: account.token)
             account.record(response, card: card)
             stage = .done(OnboardResult(
                 card: response.card,

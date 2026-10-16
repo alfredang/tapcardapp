@@ -17,7 +17,7 @@ struct CardDesignSettingsView: View {
         ("Ink", "#111827"),
     ]
 
-    private var saved: SavedCard? { account.cards.first { $0.id == cardID } }
+    private var saved: SavedCard? { account.card(withID: cardID) }
     private var details: BusinessCard { saved?.details ?? BusinessCard() }
 
     var body: some View {
@@ -27,12 +27,6 @@ struct CardDesignSettingsView: View {
                     .allowsHitTesting(false)
                     .animation(.snappy(duration: 0.25), value: details.theme)
                     .animation(.snappy(duration: 0.25), value: details.accentColor)
-
-                if let errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.orange)
-                }
 
                 section("Colour scheme",
                         footer: "Match design uses each design's own colours.") {
@@ -54,6 +48,14 @@ struct CardDesignSettingsView: View {
         .background(Theme.background)
         .navigationTitle("Card design")
         .navigationBarTitleDisplayMode(.inline)
+        // An alert, not an inline note: the grid is usually scrolled past
+        // anything at the top, so a failed save looked like a dead tap.
+        .alert("Couldn't save your design",
+               isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
     }
 
     private var accentRow: some View {
@@ -120,7 +122,7 @@ struct CardDesignSettingsView: View {
         errorMessage = nil
         Task {
             if let error = await account.updateDesign(of: cardID, theme: theme, accentColor: accent) {
-                errorMessage = "Couldn't save: \(error)"
+                errorMessage = error
             }
         }
     }

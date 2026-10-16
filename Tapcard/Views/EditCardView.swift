@@ -76,19 +76,13 @@ struct EditCardView: View {
     }
 
     private func save() {
-        guard let token = account.token else {
-            errorMessage = "You're signed out. Sign in again to edit."
-            return
-        }
         errorMessage = nil
         isSaving = true
         Task {
-            do {
-                try await TapcardAPI.updateCard(token: token, id: cardID, card: card)
-                await account.refreshServerCards()
+            if let error = await account.saveCard(cardID, details: card) {
+                errorMessage = error
+            } else {
                 dismiss()
-            } catch {
-                errorMessage = error.localizedDescription
             }
             isSaving = false
         }

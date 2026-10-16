@@ -158,10 +158,20 @@ final class AccountStore {
 
     // ─── Card edits from outside the editor ────────────────────────────────
 
+    /// Cards re-published to this account get a new server id; views opened
+    /// with the old id follow it through here.
+    private var movedCardIDs: [String: String] = [:]
+
+    func card(withID id: String) -> SavedCard? {
+        let id = movedCardIDs[id] ?? id
+        return cards.first { $0.id == id }
+    }
+
     /// Change a card's design and accent — live in the app at once, then
     /// saved to the server so the web card matches. Returns an error message
     /// (and reverts) on failure.
     func updateDesign(of cardID: String, theme: CardTheme, accentColor: String) async -> String? {
+        let cardID = movedCardIDs[cardID] ?? cardID
         guard let index = cards.firstIndex(where: { $0.id == cardID }) else { return nil }
         let previous = cards[index].details
         var details = previous ?? BusinessCard()
@@ -174,6 +184,15 @@ final class AccountStore {
         do {
             try await TapcardAPI.updateCardDesign(token: token, id: cardID, theme: theme, accentColor: accentColor)
             return nil
+        } catch APIError.server(let message) where message.localizedCaseInsensitiveContains("not found") {
+            do {
+                try await adopt(cardID, details: details, token: token)
+                return nil
+            } catch {
+                if let i = cards.firstIndex(where: { $0.id == cardID }) { cards[i].details = previous }
+                persist()
+                return error.localizedDescription
+            }
         } catch {
             if let i = cards.firstIndex(where: { $0.id == cardID }) { cards[i].details = previous }
             persist()
@@ -184,18 +203,40 @@ final class AccountStore {
     /// Save a full card (e.g. a LinkedIn profile added from the QR panel).
     func saveCard(_ cardID: String, details: BusinessCard) async -> String? {
         guard let token else { return "You're signed out. Sign in again to edit." }
+        let cardID = movedCardIDs[cardID] ?? cardID
         do {
-            try await TapcardAPI.updateCard(token: token, id: cardID, card: details)
-            if let i = cards.firstIndex(where: { $0.id == cardID }) {
-                cardsGeneration += 1
-                cards[i].details = details
-                persist()
+            do {
+                try await TapcardAPI.updateCard(token: token, id: cardID, card: details)
+                if let i = cards.firstIndex(where: { $0.id == cardID }) {
+                    cardsGeneration += 1
+                    cards[i].details = details
+                    persist()
+                }
+            } catch APIError.server(let message) where message.localizedCaseInsensitiveContains("not found") {
+                try await adopt(cardID, details: details, token: token)
             }
             await refreshServerCards()
             return nil
         } catch {
             return error.localizedDescription
         }
+    }
+
+    /// A card published under a different account — e.g. scanned with a
+    /// work email before signing in with Apple — can't be edited by this
+    /// session (the server answers "Not found"), which made every design
+    /// tap snap back. Publish it to the signed-in account and swap the local
+    /// copy for that one, keeping its place in the list.
+    private func adopt(_ cardID: String, details: BusinessCard, token: String) async throws {
+        let response = try await TapcardAPI.onboard(details, token: token)
+        movedCardIDs[cardID] = response.card.id
+        guard let i = cards.firstIndex(where: { $0.id == cardID }) else { return }
+        cardsGeneration += 1
+        cards[i].id = response.card.id
+        cards[i].slug = response.card.slug
+        cards[i].url = response.card.url
+        cards[i].details = details
+        persist()
     }
 
     /// Bumped by every local mutation (delete/publish); a refresh whose fetch
@@ -247,11 +288,15 @@ final class AccountStore {
 
     func record(_ response: OnboardResponse, card: BusinessCard) {
         cardsGeneration += 1   // invalidate any in-flight refresh
-        email = response.email
-        UserDefaults.standard.set(response.email, forKey: emailKey)
-        KeychainStore.set(response.email, for: "email")
-        if let pw = response.password {
-            KeychainStore.set(pw, for: "password")
+        // Signed in, the card joined this account — the email on the card
+        // isn't the account's, so keep the session's identity.
+        if token == nil {
+            email = response.email
+            UserDefaults.standard.set(response.email, forKey: emailKey)
+            KeychainStore.set(response.email, for: "email")
+            if let pw = response.password {
+                KeychainStore.set(pw, for: "password")
+            }
         }
 
         let saved = SavedCard(

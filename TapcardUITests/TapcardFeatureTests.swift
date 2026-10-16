@@ -46,6 +46,21 @@ final class TapcardFeatureTests: XCTestCase {
     }
 
     @MainActor
+    func testSettingsDesignGridSelectsTemplate() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TAPCARD_DEMO"] = "1"
+        app.launch()
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Card design'")).firstMatch.tap()
+        let alpine = app.buttons["Alpine, Forest design"]
+        XCTAssertTrue(alpine.waitForExistence(timeout: 5))
+        for _ in 0..<4 where !alpine.isHittable { app.swipeUp() }
+        alpine.tap()
+        let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: alpine)
+        XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 3), .completed)
+        capture(app, name: "Settings design grid")
+    }
+    @MainActor
     func testGoogleLoginVisibleInConfiguredBuild() {
         let app = XCUIApplication()
         app.launchEnvironment["TAPCARD_DEMO_AUTH"] = "logIn"

@@ -26,7 +26,9 @@ enum TapcardAPI {
     /// POST the scanned + edited card to `/api/mobile/onboard`. The backend
     /// finds-or-creates the account and publishes the digital card, persisting
     /// everything to the Coolify Postgres. Returns the public card URL.
-    static func onboard(_ card: BusinessCard) async throws -> OnboardResponse {
+    /// Signed in, `token` attaches the card to that account; without it the
+    /// backend files the card under the card's own email.
+    static func onboard(_ card: BusinessCard, token: String? = nil) async throws -> OnboardResponse {
         let url = Constants.apiBaseURL.appendingPathComponent(Constants.onboardPath)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -34,6 +36,9 @@ enum TapcardAPI {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if !Constants.mobileKey.isEmpty {
             request.setValue(Constants.mobileKey, forHTTPHeaderField: "x-tapcard-key")
+        }
+        if let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         request.httpBody = try JSONEncoder().encode(OnboardRequest(card))
         request.timeoutInterval = 30

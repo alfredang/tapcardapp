@@ -14,32 +14,6 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section {
-                HStack(spacing: 14) {
-                    ZStack {
-                        Circle().fill(Theme.gradientPrimary)
-                        Text(initials).font(.headline).foregroundStyle(.white)
-                    }
-                    .frame(width: 48, height: 48)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(account.userName.flatMap { $0.isEmpty ? nil : $0 } ?? "Your account")
-                            .font(.headline)
-                        if let email = account.email {
-                            Text(email)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        } else {
-                            Text("No account yet — scan a card to create one.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
             if let card = primaryCard {
                 Section {
                     NavigationLink {
@@ -234,11 +208,6 @@ struct SettingsView: View {
     private var countries: [DialCountry] {
         let code = account.preferences.countryCode
         return DialCountry.all.contains { $0.code == code } ? DialCountry.all : [DialCountry.named(code)] + DialCountry.all
-    }
-
-    private var initials: String {
-        let source = account.userName.flatMap { $0.isEmpty ? nil : $0 } ?? account.email ?? "T"
-        return source.split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
     }
 
     /// Which number the WhatsApp QR chats with — the thing that was broken
