@@ -11,6 +11,9 @@ Format: [Keep a Changelog](https://keepachangelog.com).
   settings buttons floating on it.
 - "My other cards": long-press a card to edit or delete it (this was swipe).
 
+### App Store
+- 2026-10-18: 1.6.2 (11) submitted for review.
+
 ## [1.6.1] — 2026-10-16 · build 10
 
 ### Fixed
