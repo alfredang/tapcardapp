@@ -3,6 +3,14 @@
 All notable changes to Tapcard (iOS) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com).
 
+## [1.6.2] — 2026-10-18 · build 11
+
+### Changed
+- Cards tab: the "Tapcard" title is gone and your card fills the screen. It runs
+  edge to edge, and its banner reaches up under the status bar, with the scan and
+  settings buttons floating on it.
+- "My other cards": long-press a card to edit or delete it (this was swipe).
+
 ## [1.6.1] — 2026-10-16 · build 10
 
 ### Fixed

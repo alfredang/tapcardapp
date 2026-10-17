@@ -22,31 +22,13 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Group {
-                    if let card = primaryCard {
-                        identityHeader(for: card)
-                        MyQRPanel(card: card)
-                        primaryActions(for: card)
-                    } else {
-                        hero
-                    }
-                }
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-
-                if account.cards.isEmpty {
-                    emptyState
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                } else if account.cards.count > 1 {
-                    otherCardsSection
+            Group {
+                if let card = primaryCard {
+                    cardPage(for: card)
+                } else {
+                    onboardingList
                 }
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(Theme.background)
             .navigationDestination(item: $editingCard) { card in
                 EditCardView(saved: card)
             }
@@ -72,7 +54,10 @@ struct HomeView: View {
             } message: {
                 Text(deleteError ?? "")
             }
-            .navigationTitle("Tapcard")
+            // No title: the card is the header. The toolbar buttons float
+            // over its banner.
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 // With a card on file, scanning is a secondary tool — kept
                 // reachable for adding another card, out of the main flow.
@@ -110,8 +95,54 @@ struct HomeView: View {
 
     // ─── Signed-in identity ─────────────────────────────────────────────────
 
+    /// The card fills the screen: edge to edge, its banner running up under
+    /// the status and navigation bars, with the QR and actions below it.
+    private func cardPage(for card: SavedCard) -> some View {
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 16) {
+                    identityHeader(for: card)
+                        .fullBleed(top: proxy.safeAreaInsets.top)
+                    Group {
+                        MyQRPanel(card: card)
+                        primaryActions(for: card)
+                        if account.cards.count > 1 {
+                            otherCards
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .padding(.bottom, 24)
+            }
+            .ignoresSafeArea(.container, edges: .top)
+            // Pulling down past the top reveals more banner, not a gap.
+            .background(alignment: .top) {
+                CardDesignBanner(theme: details(of: card).theme)
+                    .frame(height: proxy.size.height / 2)
+                    .ignoresSafeArea()
+            }
+            .background(Theme.background)
+        }
+    }
+
+    /// Before the first card: the scan pitch and an empty state.
+    private var onboardingList: some View {
+        List {
+            hero
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            emptyState
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Theme.background)
+    }
+
     /// The user's own card, rendered exactly as visitors see it.
-    private func identityHeader(for card: SavedCard) -> some View {
+    private func identityHeader(for card: SavedCard) -> CardPreviewView {
         CardPreviewView(card: details(of: card), ctaTitle: "Share my card") {
             showShare = true
         }
@@ -210,27 +241,33 @@ struct HomeView: View {
 
     /// Additional cards beyond the one on show — the primary card already
     /// leads the screen, so it isn't repeated here.
-    private var otherCardsSection: some View {
-        Section("My other cards") {
+    private var otherCards: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("My other cards")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.leading, 4)
+                .padding(.top, 8)
             ForEach(account.cards.dropFirst()) { card in
                 NavigationLink {
                     SavedCardDetailView(card: card)
                 } label: {
                     SavedCardRow(card: card, accent: accent)
                 }
-                // Swipe left: Edit, or Delete (with confirmation).
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) {
-                        pendingDelete = card
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
+                .buttonStyle(.plain)
+                // Long-press: Edit, or Delete (with confirmation).
+                .contextMenu {
                     Button {
                         editingCard = card
                     } label: {
                         Label("Edit", systemImage: "pencil")
                     }
-                    .tint(Theme.primary)
+                    Button(role: .destructive) {
+                        pendingDelete = card
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
             }
         }

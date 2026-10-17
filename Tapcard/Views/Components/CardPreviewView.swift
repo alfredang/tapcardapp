@@ -78,6 +78,9 @@ struct CardPreviewView: View {
     /// something real — save/publish/share — never a dead control.
     private let ctaTitle: String
     private let onCTA: (() -> Void)?
+    /// Set by `fullBleed(top:)`: the card spans the screen edge to edge and
+    /// its banner reaches up under the status and navigation bars.
+    private var bleedTop: CGFloat?
 
     init(card: BusinessCard, ctaTitle: String = "Save Contact",
          onCTA: (() -> Void)? = nil) {
@@ -123,7 +126,7 @@ struct CardPreviewView: View {
             // Images render as overlays: overlay content has no say in
             // layout, so a huge photo can't inflate the row height.
             Color.clear
-                .frame(height: 136)
+                .frame(height: 136 + (bleedTop ?? 0))
                 .frame(maxWidth: .infinity)
                 .background(CardDesignBanner(theme: theme))
                 .overlay {
@@ -192,10 +195,10 @@ struct CardPreviewView: View {
             .padding(.vertical, 14)
         }
         .background(theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous))
+        .clipShape(outline)
         .overlay(
-            RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous)
-                .stroke(theme.isDark ? .white.opacity(0.08) : Theme.border, lineWidth: 1)
+            outline.stroke(theme.isDark ? .white.opacity(0.08) : Theme.border,
+                           lineWidth: bleedTop == nil ? 1 : 0)
         )
         .shadow(color: accent.opacity(0.18), radius: 18, y: 10)
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
@@ -229,6 +232,22 @@ struct CardPreviewView: View {
                 } catch { imageURLError = "Couldn't import that photo. Try again." }
             }
         }
+    }
+
+    /// Edge to edge, the top corners sit off-screen, so only the bottom
+    /// ones round.
+    func fullBleed(top: CGFloat) -> Self {
+        var copy = self
+        copy.bleedTop = top
+        return copy
+    }
+
+    private var outline: UnevenRoundedRectangle {
+        let r = theme.cornerRadius
+        let top: CGFloat = bleedTop == nil ? r : 0
+        return UnevenRoundedRectangle(topLeadingRadius: top, bottomLeadingRadius: r,
+                                      bottomTrailingRadius: r, topTrailingRadius: top,
+                                      style: .continuous)
     }
 
     // ─── Image editing ──────────────────────────────────────────────────────
