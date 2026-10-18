@@ -2,11 +2,14 @@ import SwiftUI
 
 /// What a card's QR code encodes for a given mode.
 ///
-/// - **WhatsApp** — the card page with `?wa=1`, which opens a WhatsApp chat to
-///   the owner's international number with an intro message. Encoding `wa.me`
-///   directly would be one hop shorter, but a scanner without WhatsApp gets
-///   bounced to the App Store and loses the contact; routing through the card
-///   page means they always land on something useful.
+/// - **WhatsApp** — with your WhatsApp contact link on file (Settings →
+///   Sharing), that link itself: the same code WhatsApp shows under QR code,
+///   so scanning adds you as a contact. Otherwise the card page with `?wa=1`,
+///   which opens a WhatsApp chat to the owner's international number with an
+///   intro message. Encoding `wa.me` directly would be one hop shorter, but a
+///   scanner without WhatsApp gets bounced to the App Store and loses the
+///   contact; routing through the card page means they always land on
+///   something useful.
 /// - **LinkedIn** — the profile URL itself, so LinkedIn opens on Connect.
 /// - **Card link** — the public card.
 ///
@@ -18,9 +21,15 @@ struct CardQRTarget {
     let url: String?
     /// The international number a WhatsApp QR chats with ("+65 9698 3731").
     let whatsappNumber: String?
+    /// The WhatsApp QR is your own WhatsApp contact link: it adds you as a
+    /// contact rather than opening a chat.
+    let addsWhatsAppContact: Bool
 
-    init(card: SavedCard, mode: QRMode, countryCode: String) {
+    init(card: SavedCard, mode: QRMode, preferences: UserPreferences) {
         self.mode = mode
+        let countryCode = preferences.countryCode
+        let contactLink = preferences.whatsappQr.isEmpty ? nil : preferences.whatsappQr
+        addsWhatsAppContact = mode == .whatsapp && contactLink != nil
         let details = card.details
         whatsappNumber = details
             .flatMap { WhatsAppLink.number(for: $0, countryCode: countryCode) }
@@ -29,7 +38,11 @@ struct CardQRTarget {
         case .linkedin:
             url = details.flatMap(WhatsAppLink.linkedInURL(for:))
         case .whatsapp:
-            url = whatsappNumber == nil ? nil : Self.cardURL(card.url, whatsapp: true)
+            if let contactLink {
+                url = contactLink
+            } else {
+                url = whatsappNumber == nil ? nil : Self.cardURL(card.url, whatsapp: true)
+            }
         case .card:
             url = Self.cardURL(card.url, whatsapp: false)
         }
@@ -46,7 +59,7 @@ struct CardQRTarget {
 
     var caption: String {
         switch mode {
-        case .whatsapp: "Scan to chat on WhatsApp"
+        case .whatsapp: addsWhatsAppContact ? "Scan to add me on WhatsApp" : "Scan to chat on WhatsApp"
         case .linkedin: "Scan to connect on LinkedIn"
         case .card: "Scan to open my card"
         }
@@ -54,6 +67,8 @@ struct CardQRTarget {
 
     var detail: String {
         switch mode {
+        case .whatsapp where addsWhatsAppContact:
+            "Saves you as a WhatsApp contact — the same code as in WhatsApp."
         case .whatsapp:
             "Opens a WhatsApp chat with \(whatsappNumber ?? "you"), with an intro message ready to send."
         case .linkedin: "Opens your LinkedIn profile so they can connect in one tap."
@@ -72,7 +87,7 @@ struct MyQRPanel: View {
 
     private var target: CardQRTarget {
         CardQRTarget(card: card, mode: account.preferences.qrMode,
-                     countryCode: account.preferences.countryCode)
+                     preferences: account.preferences)
     }
 
     var body: some View {
@@ -86,14 +101,13 @@ struct MyQRPanel: View {
                     showFull = true
                 } label: {
                     VStack(spacing: 10) {
-                        if let qr = QRGenerator.image(for: url) {
-                            Image(uiImage: qr)
-                                .interpolation(.none)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 176, height: 176)
-                                .accessibilityLabel("QR code: \(target.caption)")
-                        }
+                        QRCodeImage(payload: url, mode: target.mode)
+                            .frame(width: 176, height: 176)
+                            .padding(12)
+                            .background(.white, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(Theme.border, lineWidth: 1))
+                            .accessibilityLabel("QR code: \(target.caption)")
                         QRCaption(target: target)
                         Text("Tap to enlarge")
                             .font(.caption2)
@@ -251,7 +265,7 @@ struct QRShareView: View {
     /// The live card (an inline LinkedIn / number save updates it).
     private var current: SavedCard { account.cards.first { $0.id == card.id } ?? card }
     private var target: CardQRTarget {
-        CardQRTarget(card: current, mode: mode, countryCode: account.preferences.countryCode)
+        CardQRTarget(card: current, mode: mode, preferences: account.preferences)
     }
 
     var body: some View {
@@ -282,11 +296,8 @@ struct QRShareView: View {
                     .padding(.horizontal, 32)
 
                 Group {
-                    if let url = target.url, let qr = QRGenerator.image(for: url) {
-                        Image(uiImage: qr)
-                            .interpolation(.none)
-                            .resizable()
-                            .scaledToFit()
+                    if let url = target.url {
+                        QRCodeImage(payload: url, mode: target.mode)
                             .padding(14)
                             .background(.white, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                             .accessibilityLabel("QR code: \(target.caption)")
@@ -313,7 +324,8 @@ struct QRShareView: View {
                 if let link = target.url, let url = URL(string: link) {
                     VStack(spacing: 14) {
                         ShareLink(item: url) {
-                            Label(mode == .linkedin ? "Share LinkedIn profile" : "Share card link",
+                            Label(mode == .linkedin ? "Share LinkedIn profile"
+                                  : target.addsWhatsAppContact ? "Share WhatsApp link" : "Share card link",
                                   systemImage: "square.and.arrow.up")
                                 .font(.headline)
                                 .foregroundStyle(Theme.primary)
@@ -334,9 +346,72 @@ struct QRShareView: View {
             }
         }
         .sheet(isPresented: $shareQR) {
-            if let link = target.url, let image = QRGenerator.image(for: link) {
+            if let link = target.url, let image = QRCodeImage.shareImage(payload: link, mode: target.mode) {
                 ShareSheet(items: [image, link])
             }
         }
+    }
+}
+
+/// A QR code as a view. The WhatsApp QR takes WhatsApp's own look — its mark
+/// in the middle — encoded at high error correction so the mark never costs
+/// a scan. Callers put it on a white tile.
+struct QRCodeImage: View {
+    let payload: String
+    let mode: QRMode
+
+    private var branded: Bool { mode == .whatsapp }
+
+    var body: some View {
+        if let qr = QRGenerator.image(for: payload, correctionLevel: branded ? "H" : "M") {
+            Image(uiImage: qr)
+                .interpolation(.none)
+                .resizable()
+                .scaledToFit()
+                .overlay {
+                    if branded {
+                        GeometryReader { geo in
+                            let side = min(geo.size.width, geo.size.height) * 0.24
+                            QRWhatsAppMark()
+                                .frame(width: side, height: side)
+                                .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                        }
+                    }
+                }
+        }
+    }
+
+    /// The QR on its white tile as an image, for the share sheet.
+    @MainActor
+    static func shareImage(payload: String, mode: QRMode) -> UIImage? {
+        let renderer = ImageRenderer(content:
+            QRCodeImage(payload: payload, mode: mode)
+                .frame(width: 600, height: 600)
+                .padding(48)
+                .background(.white))
+        renderer.scale = 2
+        return renderer.uiImage
+    }
+}
+
+/// WhatsApp's in-QR mark: the outlined bubble and handset, in black on a
+/// white disc that clears the modules beneath it.
+private struct QRWhatsAppMark: View {
+    var body: some View {
+        GeometryReader { geo in
+            let s = min(geo.size.width, geo.size.height)
+            ZStack {
+                Circle().fill(.white)
+                WhatsAppBubble().fill(.white).padding(s * 0.14)
+                WhatsAppBubble().stroke(.black, lineWidth: s * 0.075).padding(s * 0.14)
+                Image(systemName: "phone.fill")
+                    .font(.system(size: s * 0.34, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .offset(x: s * 0.01, y: -s * 0.015)
+            }
+            .frame(width: s, height: s)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .accessibilityHidden(true)
     }
 }

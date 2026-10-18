@@ -1,5 +1,13 @@
 import XCTest
+import Vision
 @testable import Tapcard
+
+private func prefs(_ countryCode: String, whatsappQr: String = "") -> UserPreferences {
+    var p = UserPreferences()
+    p.countryCode = countryCode
+    p.whatsappQr = whatsappQr
+    return p
+}
 
 final class CardSharingTests: XCTestCase {
     func testLinkedInHandlesAndURLsResolveToProfile() {
@@ -20,22 +28,22 @@ final class CardSharingTests: XCTestCase {
     func testWhatsAppQRPreservesExistingQueryAndSeparateLinkedInTarget() {
         var details = BusinessCard(); details.mobile = "+65 9123 4567"; details.linkedin = "jordanavery"
         let card = SavedCard(id:"1", fullName:"Jordan", company:"", slug:"jordan", url:"https://tapcard.example/c/jordan?ref=mobile", createdAt:Date(), details:details)
-        let whatsapp = CardQRTarget(card:card, mode:.whatsapp, countryCode:"65")
+        let whatsapp = CardQRTarget(card:card, mode:.whatsapp, preferences: prefs("65"))
         let items = URLComponents(string:whatsapp.url!)!.queryItems!
         XCTAssertTrue(items.contains(URLQueryItem(name:"ref",value:"mobile")))
         XCTAssertTrue(items.contains(URLQueryItem(name:"wa",value:"1")))
         XCTAssertEqual(whatsapp.whatsappNumber, "+65 9123 4567")
-        let linkedin = CardQRTarget(card:card, mode:.linkedin, countryCode:"65")
+        let linkedin = CardQRTarget(card:card, mode:.linkedin, preferences: prefs("65"))
         XCTAssertEqual(linkedin.url,"https://www.linkedin.com/in/jordanavery")
-        let plain = CardQRTarget(card:card, mode:.card, countryCode:"65")
+        let plain = CardQRTarget(card:card, mode:.card, preferences: prefs("65"))
         XCTAssertFalse(URLComponents(string:plain.url!)!.queryItems!.contains { $0.name == "wa" })
     }
     func testQRModesWithoutTheirDetailAskForIt() {
         var details = BusinessCard(); details.email = "j@example.com"
         let card = SavedCard(id:"1", fullName:"Jordan", company:"", slug:"jordan", url:"https://tapcard.example/c/jordan", createdAt:Date(), details:details)
-        XCTAssertNil(CardQRTarget(card:card, mode:.whatsapp, countryCode:"65").url)
-        XCTAssertNil(CardQRTarget(card:card, mode:.linkedin, countryCode:"65").url)
-        XCTAssertNotNil(CardQRTarget(card:card, mode:.card, countryCode:"65").url)
+        XCTAssertNil(CardQRTarget(card:card, mode:.whatsapp, preferences: prefs("65")).url)
+        XCTAssertNil(CardQRTarget(card:card, mode:.linkedin, preferences: prefs("65")).url)
+        XCTAssertNotNil(CardQRTarget(card:card, mode:.card, preferences: prefs("65")).url)
     }
     /// The reported bug: a local "96983731" produced wa.me/96983731, which
     /// WhatsApp rejects as missing a country code.
@@ -67,5 +75,51 @@ final class CardSharingTests: XCTestCase {
         XCTAssertTrue(card.isValid)
         XCTAssertEqual(card.theme,.modern)
         XCTAssertEqual(card.profilePhoto, "")
+    }
+
+    func testWhatsAppContactLinkIsFoundInPastedText() {
+        XCTAssertEqual(WhatsAppLink.contactLink(in: "  https://wa.me/qr/ABCDEF1234XYZ1 "), "https://wa.me/qr/ABCDEF1234XYZ1")
+        XCTAssertEqual(WhatsAppLink.contactLink(in: "Follow this link to add me as a contact on WhatsApp: https://wa.me/qr/K3JX5Q7ZLMUKA1"),
+                       "https://wa.me/qr/K3JX5Q7ZLMUKA1")
+        XCTAssertEqual(WhatsAppLink.contactLink(in: "api.whatsapp.com/qr/K3JX5Q7ZLMUKA1"), "https://wa.me/qr/K3JX5Q7ZLMUKA1")
+        XCTAssertNil(WhatsAppLink.contactLink(in: "https://wa.me/6596983731"))
+        XCTAssertNil(WhatsAppLink.contactLink(in: "hello"))
+    }
+    /// With the owner's WhatsApp contact link on file, the WhatsApp QR is that
+    /// link — the same code WhatsApp shows — even without a number on the card.
+    func testWhatsAppQRUsesTheContactLinkWhenSet() {
+        let card = SavedCard(id:"1", fullName:"Jordan", company:"", slug:"jordan", url:"https://tapcard.example/c/jordan", createdAt:Date(), details:BusinessCard())
+        let target = CardQRTarget(card: card, mode: .whatsapp, preferences: prefs("65", whatsappQr: "https://wa.me/qr/K3JX5Q7ZLMUKA1"))
+        XCTAssertEqual(target.url, "https://wa.me/qr/K3JX5Q7ZLMUKA1")
+        XCTAssertTrue(target.addsWhatsAppContact)
+        let card2 = CardQRTarget(card: card, mode: .card, preferences: prefs("65", whatsappQr: "https://wa.me/qr/K3JX5Q7ZLMUKA1"))
+        XCTAssertEqual(card2.url?.hasPrefix("https://tapcard.example/c/jordan"), true)
+        XCTAssertFalse(card2.addsWhatsAppContact)
+    }
+    /// The WhatsApp mark over the centre must not cost a scan — for the short
+    /// contact link and the longer card hand-off alike.
+    @MainActor
+    func testBrandedWhatsAppQRStillDecodes() throws {
+        let payloads = ["https://wa.me/qr/K3JX5Q7ZLMUKA1",
+                        "https://tapcard.tertiaryinfotech.com/c/dr-alfred-ang-rlbg?wa=1&src=qr"]
+        let images = try payloads.map {
+            try XCTUnwrap(QRCodeImage.shareImage(payload: $0, mode: .whatsapp)?.cgImage)
+        }
+        if let dir = ProcessInfo.processInfo.environment["QR_SNAPSHOT_DIR"] {
+            for (image, name) in zip(images, ["qr-contact.png", "qr-chat.png"]) {
+                try UIImage(cgImage: image).pngData()?.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
+            }
+        }
+        for (image, payload) in zip(images, payloads) {
+            let request = VNDetectBarcodesRequest()
+            request.symbologies = [.qr]
+            do {
+                try VNImageRequestHandler(cgImage: image).perform([request])
+            } catch {
+                // The Simulator has no Vision inference; this runs on device.
+                throw XCTSkip("Vision unavailable here: \(error.localizedDescription)")
+            }
+            XCTAssertEqual(request.results?.first?.payloadStringValue, payload)
+        }
     }
 }

@@ -3,6 +3,23 @@
 All notable changes to Tapcard (iOS) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com).
 
+## [1.6.3] — 2026-10-19 · build 12
+
+### Added
+- Settings → Sharing → WhatsApp QR: add your own WhatsApp QR (read from a
+  screenshot of WhatsApp → QR code, or paste its wa.me/qr link). The WhatsApp QR
+  on the Cards tab is then the same code WhatsApp shows, so scanning adds you as
+  a WhatsApp contact. Without it, the QR still opens a chat with an intro message.
+  Synced with your account and tapcard.tertiaryinfotech.com/settings.
+
+### Changed
+- The WhatsApp QR has WhatsApp's look: the WhatsApp mark in the middle of a
+  rounded white tile, encoded at high error correction so it still scans. The
+  shared QR image matches.
+
+### App Store
+- 2026-10-19: 1.6.3 (12) submitted for review.
+
 ## [1.6.2] — 2026-10-18 · build 11
 
 ### Changed

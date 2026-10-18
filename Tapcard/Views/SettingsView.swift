@@ -68,10 +68,21 @@ struct SettingsView: View {
                 if let card = primaryCard {
                     whatsappStatus(for: card)
                 }
+
+                NavigationLink {
+                    WhatsAppQRLinkView()
+                } label: {
+                    LabeledContent {
+                        Text(account.preferences.whatsappQr.isEmpty ? "Opens a chat" : "Adds contact")
+                            .foregroundStyle(.secondary)
+                    } label: {
+                        Label("WhatsApp QR", systemImage: "qrcode.viewfinder")
+                    }
+                }
             } header: {
                 Text("Sharing")
             } footer: {
-                Text("Local numbers on your card get +\(account.preferences.countryCode) added, so anyone who scans your QR lands in a WhatsApp chat with you. Synced with your account — also at tapcard.tertiaryinfotech.com/settings.")
+                Text("Local numbers on your card get +\(account.preferences.countryCode) added, so anyone who scans your QR lands in a WhatsApp chat with you — or, with your WhatsApp QR added, saves you as a contact. Synced with your account — also at tapcard.tertiaryinfotech.com/settings.")
             }
 
             if account.isSignedIn {

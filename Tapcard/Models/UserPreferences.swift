@@ -33,6 +33,10 @@ struct UserPreferences: Codable, Equatable, Sendable {
     var countryCode: String = PhoneNumber.defaultCountryCode
     /// What the QR on the Cards tab opens by default.
     var qrMode: QRMode = .whatsapp
+    /// Your own WhatsApp contact link ("https://wa.me/qr/…"), copied from
+    /// WhatsApp → QR code; "" when unset. When set, the WhatsApp QR is the
+    /// same as WhatsApp's: scanning adds you as a contact.
+    var whatsappQr: String = ""
 
     init() {}
 
@@ -41,6 +45,7 @@ struct UserPreferences: Codable, Equatable, Sendable {
         countryCode = (try? c.decode(String.self, forKey: .countryCode))
             .flatMap { $0.isEmpty ? nil : $0 } ?? PhoneNumber.defaultCountryCode
         qrMode = (try? c.decode(QRMode.self, forKey: .qrMode)) ?? .whatsapp
+        whatsappQr = (try? c.decode(String.self, forKey: .whatsappQr)) ?? ""
     }
 }
 

@@ -79,6 +79,7 @@ final class AccountStore {
             token = "demo-token"
             userName = "Jordan Avery"
             cards = DemoSupport.demoSavedCards
+            if let link = DemoSupport.whatsappQr { preferences.whatsappQr = link }
             return
         }
         email = UserDefaults.standard.string(forKey: emailKey)
@@ -119,7 +120,9 @@ final class AccountStore {
     func refreshPreferences() async {
         guard let token, !DemoSupport.seedCards else { return }
         if UserDefaults.standard.bool(forKey: preferencesDirtyKey) {
-            let local: [String: Any] = ["countryCode": preferences.countryCode, "qrMode": preferences.qrMode.rawValue]
+            let local: [String: Any] = ["countryCode": preferences.countryCode,
+                                        "qrMode": preferences.qrMode.rawValue,
+                                        "whatsappQr": preferences.whatsappQr]
             guard (try? await TapcardAPI.updateSettings(token: token, local)) != nil else { return }
             UserDefaults.standard.set(false, forKey: preferencesDirtyKey)
         }
@@ -132,10 +135,12 @@ final class AccountStore {
     /// switch at an event can't wait on signal), then sync it to the account.
     /// Returns an error message when the sync failed; it's retried on the
     /// next refresh.
-    func updatePreferences(countryCode: String? = nil, qrMode: QRMode? = nil) async -> String? {
+    func updatePreferences(countryCode: String? = nil, qrMode: QRMode? = nil,
+                           whatsappQr: String? = nil) async -> String? {
         var changes: [String: Any] = [:]
         if let countryCode { preferences.countryCode = countryCode; changes["countryCode"] = countryCode }
         if let qrMode { preferences.qrMode = qrMode; changes["qrMode"] = qrMode.rawValue }
+        if let whatsappQr { preferences.whatsappQr = whatsappQr; changes["whatsappQr"] = whatsappQr }
         persistPreferences()
         guard let token, !changes.isEmpty, !DemoSupport.seedCards else { return nil }
         do {

@@ -768,7 +768,7 @@ struct WhatsAppGlyph: View {
 }
 
 /// Speech-bubble circle with the characteristic bottom-left tail.
-private struct WhatsAppBubble: Shape {
+struct WhatsAppBubble: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let s = min(rect.width, rect.height)

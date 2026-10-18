@@ -21,6 +21,16 @@ enum WhatsAppLink {
         return nil
     }
 
+    /// Pull your WhatsApp contact link out of pasted text or a scanned QR
+    /// payload — WhatsApp's share text wraps it in a sentence — as
+    /// "https://wa.me/qr/<code>". Nil when there's none. Same rule as the
+    /// backend's whatsappQrLink.
+    static func contactLink(in text: String) -> String? {
+        guard let match = text.firstMatch(of: /(?i)(?:wa\.me|api\.whatsapp\.com)\/qr\/([A-Za-z0-9]+)/)
+        else { return nil }
+        return "https://wa.me/qr/\(match.1)"
+    }
+
     /// "+65 9698 3731"-style display of the number a WhatsApp QR chats with.
     static func displayNumber(for card: BusinessCard, countryCode: String) -> String? {
         number(for: card, countryCode: countryCode).map { "+" + $0 }

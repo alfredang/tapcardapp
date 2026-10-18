@@ -191,9 +191,10 @@ struct HomeView: View {
         let prefs = account.preferences
         if let vcf = VCard.file(for: details(of: card), publicURL: card.url,
                                 countryCode: prefs.countryCode) { items.append(vcf) }
-        if let link = CardQRTarget(card: card, mode: prefs.qrMode, countryCode: prefs.countryCode).url
-            ?? CardQRTarget(card: card, mode: .card, countryCode: prefs.countryCode).url,
-           let qr = QRGenerator.image(for: link) { items.append(qr) }
+        let preferred = CardQRTarget(card: card, mode: prefs.qrMode, preferences: prefs)
+        let target = preferred.url != nil ? preferred : CardQRTarget(card: card, mode: .card, preferences: prefs)
+        if let link = target.url,
+           let qr = QRCodeImage.shareImage(payload: link, mode: target.mode) { items.append(qr) }
         return items
     }
 

@@ -14,6 +14,11 @@ enum DemoSupport {
     static var startInDone: Bool {
         ProcessInfo.processInfo.environment["TAPCARD_DEMO_DONE"] == "1"
     }
+    /// A sample WhatsApp contact link for the demo account, to capture the
+    /// "adds you as a contact" WhatsApp QR.
+    static var whatsappQr: String? {
+        ProcessInfo.processInfo.environment["TAPCARD_DEMO_WHATSAPP_QR"]
+    }
     /// When set, `submit` returns a canned published card instead of calling the API.
     static var fakeSubmit: Bool {
         ProcessInfo.processInfo.environment["TAPCARD_DEMO_FAKE_SUBMIT"] == "1"
