@@ -3,6 +3,21 @@
 All notable changes to Tapcard (iOS) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com).
 
+## [1.6.4] — 2026-10-19 · build 13
+
+Includes everything in 1.6.3, which was withdrawn from review before release.
+
+### Added
+- Apple Intelligence images (Image Playground, on-device). Settings → Card design
+  → **Create banner** / **Create photo**, and "Create with Apple Intelligence" in
+  the card editor's photo and banner menus. Ideas start from the card's design,
+  job title and company and can be edited; the photo can start from your current
+  one to draw your likeness. Shown only on iPhones with Apple Intelligence.
+- Card design: "Use the design's banner instead" removes a custom banner.
+
+### App Store
+- 2026-10-19: 1.6.4 (13) submitted for review.
+
 ## [1.6.3] — 2026-10-19 · build 12
 
 ### Added
@@ -18,7 +33,7 @@ Format: [Keep a Changelog](https://keepachangelog.com).
   shared QR image matches.
 
 ### App Store
-- 2026-10-19: 1.6.3 (12) submitted for review.
+- 2026-10-19: 1.6.3 (12) submitted for review, then withdrawn and replaced by 1.6.4.
 
 ## [1.6.2] — 2026-10-18 · build 11
 

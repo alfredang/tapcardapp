@@ -139,6 +139,29 @@ final class TapcardFeatureTests: XCTestCase {
     }
 
     @MainActor
+    func testWhatsAppQRSettingAndCardDesignImages() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TAPCARD_DEMO"] = "1"
+        app.launchEnvironment["TAPCARD_DEMO_WHATSAPP_QR"] = "https://wa.me/qr/K3JX5Q7ZLMUKA1"
+        app.launch()
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["Scan to add me on WhatsApp"].waitForExistence(timeout:5))
+        capture(app, name: "WhatsApp contact QR")
+        app.tabBars.buttons["Settings"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'WhatsApp QR'")).firstMatch
+        if !row.waitForExistence(timeout:3) { app.swipeUp() }
+        XCTAssertTrue(row.waitForExistence(timeout:5))
+        row.tap()
+        XCTAssertTrue(app.buttons["Read from a screenshot"].waitForExistence(timeout:5))
+        capture(app, name: "WhatsApp QR setting")
+        app.navigationBars.buttons.firstMatch.tap()
+        app.swipeDown()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Card design'")).firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Colour scheme"].waitForExistence(timeout:5))
+        capture(app, name: "Card design")
+    }
+
+    @MainActor
     private func capture(_ app: XCUIApplication, name: String) {
         let screenshot = app.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)

@@ -118,6 +118,8 @@ struct CardPreviewView: View {
     @State private var imageURLEntry = ""
     @State private var imageURLError: String?
     @State private var showMapChooser = false
+    /// Image Playground (Apple Intelligence) for `imageTarget`.
+    @State private var showImagePlayground = false
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -202,6 +204,12 @@ struct CardPreviewView: View {
         )
         .shadow(color: accent.opacity(0.18), radius: 18, y: 10)
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        .appleIntelligenceImageSheet(
+            isPresented: $showImagePlayground,
+            concepts: imageKind.concepts(for: card),
+            // A photo of you lets it draw your likeness.
+            sourceImage: imageTarget == .avatar ? CardImageView.decode(card.profilePhoto) : nil
+        ) { applyImage($0) }
         .alert("Paste image URL", isPresented: $showImageURLPrompt) {
             TextField("https://…", text: $imageURLEntry)
                 .textInputAutocapitalization(.never)
@@ -263,19 +271,13 @@ struct CardPreviewView: View {
         }
     }
 
+    private var imageKind: CardImageKind { imageTarget == .avatar ? .avatar : .banner }
+
     /// Downscale, compress and store as a base64 data URL (the same format
     /// the web builder uploads), keeping payloads well under the API cap.
     private func applyImage(_ image: UIImage) {
-        let maxDim: CGFloat = imageTarget == .avatar ? 512 : 1400
-        let scale = min(1, maxDim / max(image.size.width, image.size.height))
-        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 1
-        let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
-            image.draw(in: CGRect(origin: .zero, size: size))
-        }
-        guard let data = resized.jpegData(compressionQuality: 0.8) else { return }
-        setImage("data:image/jpeg;base64," + data.base64EncodedString())
+        guard let url = imageKind.dataURL(for: image) else { return }
+        setImage(url)
     }
 
     /// Fetch a pasted image URL and store it like any picked photo — the
@@ -313,6 +315,14 @@ struct CardPreviewView: View {
                 showPhotoPicker = true
             } label: {
                 Label("Choose from Photos", systemImage: "photo.on.rectangle")
+            }
+            IfImagePlaygroundSupported {
+                Button {
+                    imageTarget = target
+                    showImagePlayground = true
+                } label: {
+                    Label("Create with Apple Intelligence", systemImage: "apple.intelligence")
+                }
             }
             Button {
                 imageTarget = target

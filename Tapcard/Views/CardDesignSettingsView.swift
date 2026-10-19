@@ -8,6 +8,9 @@ struct CardDesignSettingsView: View {
     let cardID: String
 
     @State private var errorMessage: String?
+    /// What Image Playground is generating, while its sheet is up.
+    @State private var generating: CardImageKind?
+    @State private var isSavingImage = false
 
     /// Hand-picked accents that read well on every light and dark design.
     static let accents: [(name: String, hex: String)] = [
@@ -33,6 +36,13 @@ struct CardDesignSettingsView: View {
                     accentRow
                 }
 
+                IfImagePlaygroundSupported {
+                    section("Apple Intelligence",
+                            footer: "Images are created on your iPhone from your card's design, job title and company — edit the ideas before you create.") {
+                        aiImageButtons
+                    }
+                }
+
                 section("Design · 20 templates", footer: nil) {
                     ThemeSwatchGrid(selection: Binding(
                         get: { details.theme },
@@ -46,11 +56,19 @@ struct CardDesignSettingsView: View {
             .padding(16)
         }
         .background(Theme.background)
+        .appleIntelligenceImageSheet(
+            isPresented: Binding(get: { generating != nil }, set: { if !$0 { generating = nil } }),
+            concepts: (generating ?? .banner).concepts(for: details),
+            // A photo of you lets it draw your likeness.
+            sourceImage: generating == .avatar ? CardImageView.decode(details.profilePhoto) : nil
+        ) { image in
+            if let kind = generating { save(image, as: kind) }
+        }
         .navigationTitle("Card design")
         .navigationBarTitleDisplayMode(.inline)
         // An alert, not an inline note: the grid is usually scrolled past
         // anything at the top, so a failed save looked like a dead tap.
-        .alert("Couldn't save your design",
+        .alert("Couldn't save your card",
                isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -114,6 +132,63 @@ struct CardDesignSettingsView: View {
             if let footer {
                 Text(footer).font(.caption).foregroundStyle(Theme.mutedForeground)
             }
+        }
+    }
+
+    private var aiImageButtons: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                Button {
+                    generating = .banner
+                } label: {
+                    Label("Create banner", systemImage: "apple.intelligence")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(GradientButtonStyle())
+                Button {
+                    generating = .avatar
+                } label: {
+                    Label("Create photo", systemImage: "person.crop.circle.badge.plus")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(OutlineButtonStyle())
+            }
+            .disabled(isSavingImage)
+            if isSavingImage {
+                ProgressView("Saving…").font(.caption)
+            } else if !details.coverBanner.trimmed.isEmpty {
+                Button("Use the design's banner instead", role: .destructive) {
+                    var updated = details
+                    updated.coverBanner = ""
+                    save(updated)
+                }
+                .font(.footnote)
+            }
+        }
+    }
+
+    private func save(_ image: UIImage, as kind: CardImageKind) {
+        guard let url = kind.dataURL(for: image) else { return }
+        var updated = details
+        switch kind {
+        case .banner: updated.coverBanner = url
+        case .avatar: updated.profilePhoto = url
+        }
+        save(updated)
+    }
+
+    private func save(_ updated: BusinessCard) {
+        guard let saved else { return }
+        var updated = updated
+        if updated.fullName.trimmed.isEmpty { updated.fullName = saved.fullName }
+        isSavingImage = true
+        Task {
+            if let error = await account.saveCard(saved.id, details: updated) {
+                errorMessage = error
+            }
+            isSavingImage = false
         }
     }
 
