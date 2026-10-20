@@ -44,14 +44,23 @@ sets up your account, and publishes a live digital card with a QR code — backe
 Everything scanning/OCR is **on-device**; only the card you choose to publish is sent to
 your account.
 
+### Scan other people's cards into Contacts
+
+The Cards tab's camera button asks **whose card it is**. Someone else's card is read the same
+way (on-device OCR + Apple Intelligence) and opens a pre-filled contact to check and save —
+synced with the web CRM. The Contacts tab also has its own **Scan a business card** button
+beside the QR scan. Website, landline and LinkedIn go into the contact's notes.
+
 ### Share & settings (mobile-first)
 
 - **Smart QR** — switch between **WhatsApp** (scanning opens a chat with you, your card
   underneath), **LinkedIn** and your **card link**; the default lives in Settings.
 - **Country code** — local numbers like `9698 3731` get your dialling code, so WhatsApp,
   `tel:` links and vCards connect internationally instead of failing as "invalid number".
-- **Card design** — all 20 designs plus an accent colour, with a live preview; saves
-  instantly to your web card.
+- **Card design** — all 20 designs plus a colour scheme, with a live preview; a picked colour
+  also restyles the icons and the card's button. Saves instantly to your web card.
+- **Apple Intelligence images** — create the banner or profile photo with Image Playground
+  (on-device), from your own prompt such as "Singapore skyline".
 - **Synced with the web** — Settings read and write the same account preferences as
   [tapcard.tertiaryinfotech.com/settings](https://tapcard.tertiaryinfotech.com/settings)
   (`/api/mobile/settings`), and keep working offline.
@@ -81,8 +90,9 @@ Models/       BusinessCard (scanned/edited fields), CardTheme, PublishedCard
 Services/     CardScannerService (single-shot camera), OCRService (Vision), ContactParser,
               AIContactExtractor (Apple Intelligence),
               TapcardAPI (backend onboarding), KeychainStore
-ViewModels/   ScanViewModel (scan→review→publish), AccountStore  (@MainActor @Observable)
-Views/        Home, ScanFlow, ReviewCard, CardResult, SavedCardDetail, Settings
+ViewModels/   ScanViewModel (scan→review→publish, shared card reader), AccountStore  (@MainActor @Observable)
+Views/        Home, ScanFlow, ReviewCard, CardResult, SavedCardDetail, Settings,
+              Contacts + ContactScanFlow (scan someone's card into Contacts)
 Utilities/    Constants (backend URL), QRGenerator (+ Color hex), DemoSupport
 Resources/    Assets.xcassets (AppIcon, AccentColor), PrivacyInfo.xcprivacy
 ```
@@ -127,8 +137,8 @@ xcodebuild -project Tapcard.xcodeproj -scheme Tapcard \
 ## Privacy
 
 - Scanning, OCR and parsing run **on-device** with Vision — no third-party SDKs.
-- Only the card you publish (your name, contact details and email) is sent to your Tapcard
-  account; `PrivacyInfo.xcprivacy` declares this as app-functionality data, not tracking.
+- Only the card you publish (your name, contact details and email) — and the contacts you
+  choose to save from other people's cards — are sent to your Tapcard account; `PrivacyInfo.xcprivacy` declares this as app-functionality data, not tracking.
 
 ---
 
