@@ -37,4 +37,15 @@ extension Color {
         }
         self.init(red: r, green: g, blue: b)
     }
+
+    /// Whether dark text reads better than white on this colour (relative
+    /// luminance above ~0.55) — for colours the owner picks freely on the web.
+    static func isLight(hex: String) -> Bool {
+        let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "# "))
+        guard cleaned.count == 6, let value = UInt64(cleaned, radix: 16) else { return false }
+        let r = Double((value >> 16) & 0xFF) / 255
+        let g = Double((value >> 8) & 0xFF) / 255
+        let b = Double(value & 0xFF) / 255
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55
+    }
 }

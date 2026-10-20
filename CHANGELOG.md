@@ -3,6 +3,19 @@
 All notable changes to Tapcard (iOS) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com).
 
+## [1.6.5] — 2026-10-21 · build 14
+
+### Changed
+- Apple Intelligence banner and photo: Image Playground now opens with an empty
+  prompt, so you describe the image yourself (e.g. "Singapore skyline"). It no
+  longer pre-fills ideas from the job title and company, which were being drawn
+  into the banner as text.
+- Card design: the card's button (Share my card / Save Contact) now follows the
+  colour scheme you pick, like the icons do. "Match design" keeps the design's
+  own button.
+- The WhatsApp row on the card uses the same tinted icon as the other rows
+  instead of a green badge.
+
 ## [1.6.4] — 2026-10-19 · build 13
 
 Includes everything in 1.6.3, which was withdrawn from review before release.

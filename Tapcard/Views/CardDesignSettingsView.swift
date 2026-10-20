@@ -58,7 +58,6 @@ struct CardDesignSettingsView: View {
         .background(Theme.background)
         .appleIntelligenceImageSheet(
             isPresented: Binding(get: { generating != nil }, set: { if !$0 { generating = nil } }),
-            concepts: (generating ?? .banner).concepts(for: details),
             // A photo of you lets it draw your likeness.
             sourceImage: generating == .avatar ? CardImageView.decode(details.profilePhoto) : nil
         ) { image in

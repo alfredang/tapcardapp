@@ -206,7 +206,6 @@ struct CardPreviewView: View {
         .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
         .appleIntelligenceImageSheet(
             isPresented: $showImagePlayground,
-            concepts: imageKind.concepts(for: card),
             // A photo of you lets it draw your likeness.
             sourceImage: imageTarget == .avatar ? CardImageView.decode(card.profilePhoto) : nil
         ) { applyImage($0) }
@@ -433,13 +432,18 @@ struct CardPreviewView: View {
         if let url = URL(string: raw) { openURL(url) }
     }
 
+    /// The design's own button, unless the owner picked a colour scheme —
+    /// then the button follows it like the icons and tagline do.
     private var ctaLabel: some View {
-        Text(ctaTitle)
+        let custom = card.customAccentHex
+        let darkText = custom.map { Color.isLight(hex: $0) } ?? (theme == .luxury || theme == .graphite)
+        return Text(ctaTitle)
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(theme == .luxury || theme == .graphite ? .black : .white)
+            .foregroundStyle(darkText ? .black : .white)
             .frame(maxWidth: .infinity)
             .frame(height: 40)
-            .background(theme.actionGradient, in: Capsule())
+            .background(custom.map { AnyShapeStyle(Color(hex: $0)) } ?? AnyShapeStyle(theme.actionGradient),
+                        in: Capsule())
     }
 
     /// The short bio under the identity block — multiline, capped at 1000
@@ -525,8 +529,18 @@ struct CardPreviewView: View {
                             keyboard: UIKeyboardType) -> some View {
         HStack(spacing: 10) {
             if keyPath == \.whatsapp {
-                WhatsAppGlyph()
-                    .frame(width: 30, height: 30)
+                // Outline mark in the accent on the same chip as the other
+                // rows — the green brand badge stood out from them.
+                ZStack {
+                    WhatsAppBubble().stroke(accent, lineWidth: 1.5)
+                    Image(systemName: "phone.fill")
+                        .font(.system(size: 6.5, weight: .bold))
+                        .foregroundStyle(accent)
+                }
+                .frame(width: 14, height: 14)
+                .frame(width: 30, height: 30)
+                .background(chip, in: Circle())
+                .accessibilityLabel("WhatsApp")
             } else {
                 Image(systemName: icon)
                     .font(.caption)

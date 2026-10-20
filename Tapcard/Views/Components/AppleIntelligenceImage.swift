@@ -9,22 +9,6 @@ import ImagePlayground
 enum CardImageKind {
     case banner, avatar
 
-    /// Starting ideas for Image Playground, from the card itself. The person
-    /// can edit them in the sheet before generating.
-    func concepts(for card: BusinessCard) -> [String] {
-        var ideas: [String]
-        switch self {
-        case .banner:
-            ideas = ["abstract background", "\(card.theme.label.lowercased()) colours"]
-        case .avatar:
-            ideas = ["professional portrait"]
-        }
-        for field in [card.jobTitle, card.company] where !field.trimmed.isEmpty {
-            ideas.append(field.trimmed)
-        }
-        return ideas
-    }
-
     /// Longest side kept: the avatar renders at 116pt, the banner spans the
     /// screen.
     var maxDimension: CGFloat { self == .avatar ? 512 : 1400 }
@@ -67,20 +51,21 @@ struct IfImagePlaygroundSupported<Content: View>: View {
 }
 
 extension View {
-    /// Presents Image Playground seeded with `concepts` (and `sourceImage`,
-    /// which it can turn into a likeness), handing back the chosen image.
-    /// A no-op before iOS 18.1.
-    func appleIntelligenceImageSheet(isPresented: Binding<Bool>, concepts: [String],
+    /// Presents Image Playground with an empty prompt — the person describes
+    /// the image themselves (seeded ideas such as the job title got drawn in
+    /// as text and got in the way of e.g. "Singapore skyline"). `sourceImage`
+    /// can be turned into a likeness. Hands back the chosen image; a no-op
+    /// before iOS 18.1.
+    func appleIntelligenceImageSheet(isPresented: Binding<Bool>,
                                      sourceImage: UIImage? = nil,
                                      onImage: @escaping (UIImage) -> Void) -> some View {
-        modifier(ImagePlaygroundSheetModifier(isPresented: isPresented, concepts: concepts,
+        modifier(ImagePlaygroundSheetModifier(isPresented: isPresented,
                                               sourceImage: sourceImage, onImage: onImage))
     }
 }
 
 private struct ImagePlaygroundSheetModifier: ViewModifier {
     @Binding var isPresented: Bool
-    let concepts: [String]
     let sourceImage: UIImage?
     let onImage: (UIImage) -> Void
 
@@ -88,7 +73,6 @@ private struct ImagePlaygroundSheetModifier: ViewModifier {
         if #available(iOS 18.1, *) {
             content.imagePlaygroundSheet(
                 isPresented: $isPresented,
-                concepts: concepts.map { ImagePlaygroundConcept.text($0) },
                 sourceImage: sourceImage.map { Image(uiImage: $0) }
             ) { url in
                 // The image is a temporary file owned by the system; read it now.
