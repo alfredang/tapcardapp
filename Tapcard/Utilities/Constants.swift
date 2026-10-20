@@ -27,4 +27,6 @@ enum Constants {
     static let tealHex = "#16B6A0"       // --highlight hsl(172 78% 40%)
 
     static let supportURL = URL(string: "https://www.tertiaryinfotech.com")!
+    /// Also set as the App Store listing's Privacy Policy URL.
+    static let privacyPolicyURL = URL(string: "https://tapcard.tertiaryinfotech.com/privacy")!
 }

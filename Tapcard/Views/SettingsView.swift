@@ -134,6 +134,9 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 4)
                 LabeledContent("Version", value: appVersion)
+                Link(destination: Constants.privacyPolicyURL) {
+                    Label("Privacy Policy", systemImage: "hand.raised.fill")
+                }
             }
 
             Section("Developer") {

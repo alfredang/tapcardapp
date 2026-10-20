@@ -3,6 +3,15 @@
 All notable changes to Tapcard (iOS) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com).
 
+## [Unreleased]
+
+### Added
+- Settings → About → **Privacy Policy** opens tapcard.tertiaryinfotech.com/privacy
+  (also the App Store listing's privacy URL from 1.6.5).
+
+### Changed
+- Privacy manifest declares Contacts (people you save, including scanned cards).
+
 ## [1.6.5] — 2026-10-21 · build 15
 
 ### Added
