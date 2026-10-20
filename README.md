@@ -139,6 +139,8 @@ xcodebuild -project Tapcard.xcodeproj -scheme Tapcard \
 - Scanning, OCR and parsing run **on-device** with Vision — no third-party SDKs.
 - Only the card you publish (your name, contact details and email) — and the contacts you
   choose to save from other people's cards — are sent to your Tapcard account; `PrivacyInfo.xcprivacy` declares this as app-functionality data, not tracking.
+- Full policy: [tapcard.tertiaryinfotech.com/privacy](https://tapcard.tertiaryinfotech.com/privacy)
+  — linked from Settings → About and from the App Store listing.
 
 ---
 
