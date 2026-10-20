@@ -9,7 +9,13 @@ import SwiftUI
 /// - **No card yet** — the scan hero and its call to action, as before.
 struct HomeView: View {
     @Environment(AccountStore.self) private var account
-    @State private var showingScan = false
+    /// The scan in progress — one cover for both, since SwiftUI presents
+    /// only one of several covers on the same view.
+    @State private var scanning: ScanKind?
+    /// The camera button asks whose card it is: yours, or someone else's
+    /// for Contacts.
+    @State private var askWhoseCard = false
+    @State private var savedContactName: String?
     @State private var editingCard: SavedCard?
     @State private var pendingDelete: SavedCard?
     @State private var deleteError: String?
@@ -59,12 +65,12 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
-                // With a card on file, scanning is a secondary tool — kept
-                // reachable for adding another card, out of the main flow.
+                // With a card on file, scanning is a secondary tool — mostly
+                // for other people's cards (to Contacts), or another of yours.
                 if primaryCard != nil {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
-                            showingScan = true
+                            askWhoseCard = true
                         } label: {
                             Image(systemName: "camera.viewfinder")
                         }
@@ -79,8 +85,23 @@ struct HomeView: View {
                     }
                 }
             }
-            .fullScreenCover(isPresented: $showingScan) {
-                ScanFlowView()
+            .confirmationDialog("Whose business card is this?", isPresented: $askWhoseCard,
+                                titleVisibility: .visible) {
+                Button("Someone else's — save to Contacts") { scanning = .contact }
+                Button("Mine — create a digital card") { scanning = .own }
+                Button("Cancel", role: .cancel) {}
+            }
+            .fullScreenCover(item: $scanning) { kind in
+                switch kind {
+                case .own: ScanFlowView()
+                case .contact: ContactScanFlowView { savedContactName = $0.displayName }
+                }
+            }
+            .alert("Saved to Contacts", isPresented: Binding(
+                get: { savedContactName != nil }, set: { if !$0 { savedContactName = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("\(savedContactName ?? "") is in your Contacts tab, synced with the web.")
             }
             .sheet(isPresented: $showShare) {
                 if let card = primaryCard {
@@ -88,7 +109,7 @@ struct HomeView: View {
                 }
             }
             .onAppear {
-                if DemoSupport.startInReview || DemoSupport.startInDone { showingScan = true }
+                if DemoSupport.startInReview || DemoSupport.startInDone { scanning = .own }
             }
         }
     }
@@ -228,7 +249,7 @@ struct HomeView: View {
             .frame(minHeight: 240)
 
             Button {
-                showingScan = true
+                scanning = .own
             } label: {
                 Label("Scan business card", systemImage: "camera.viewfinder")
                     .font(.headline)
@@ -321,4 +342,13 @@ struct SavedCardRow: View {
     private var initials: String {
         card.fullName.split(separator: " ").prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
     }
+}
+
+/// What a paper card is scanned for.
+enum ScanKind: String, Identifiable {
+    /// Your own card — published as your digital card.
+    case own
+    /// Someone else's — saved to Contacts.
+    case contact
+    var id: String { rawValue }
 }

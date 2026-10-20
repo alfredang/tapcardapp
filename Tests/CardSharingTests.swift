@@ -10,6 +10,25 @@ private func prefs(_ countryCode: String, whatsappQr: String = "") -> UserPrefer
 }
 
 final class CardSharingTests: XCTestCase {
+    func testScannedCardBecomesContact() {
+        var card = BusinessCard()
+        card.fullName = " Jane Tan "; card.jobTitle = "CTO"; card.company = "Acme"
+        card.email = "jane@acme.sg"; card.mobile = "+65 9000 0000"; card.officePhone = "+65 6000 0000"
+        card.whatsapp = "+65 9000 0000"; card.website = "acme.sg"; card.linkedin = "in/janetan"
+        let contact = card.toContact()
+        XCTAssertEqual(contact.name, "Jane Tan")
+        XCTAssertEqual(contact.position, "CTO")
+        XCTAssertEqual(contact.company, "Acme")
+        XCTAssertEqual(contact.phone, "+65 9000 0000")
+        XCTAssertEqual(contact.whatsapp, "+65 9000 0000")
+        XCTAssertEqual(contact.notes, "Office: +65 6000 0000\nWebsite: acme.sg\nLinkedIn: in/janetan")
+        XCTAssertTrue(contact.id.isEmpty, "a scanned contact is new")
+
+        var landlineOnly = BusinessCard(); landlineOnly.officePhone = "+65 6000 0000"
+        XCTAssertEqual(landlineOnly.toContact().phone, "+65 6000 0000")
+        XCTAssertEqual(landlineOnly.toContact().notes, "")
+    }
+
     func testLinkedInHandlesAndURLsResolveToProfile() {
         for input in ["jordanavery", "in/jordanavery", "linkedin.com/in/jordanavery", "https://www.linkedin.com/in/jordanavery?trk=profile"] {
             var card = BusinessCard(); card.linkedin = input

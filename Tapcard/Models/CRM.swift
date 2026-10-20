@@ -1,7 +1,8 @@
 import Foundation
 
 /// A person you've saved — the iOS twin of the web app's `Contact` model.
-/// Populated by hand, by saving a captured `Lead`, or from a scanned QR code.
+/// Populated by hand, by saving a captured `Lead`, from a scanned QR code,
+/// or from a scanned paper business card.
 /// Synced to the shared backend so it also appears in the web CRM.
 struct Contact: Codable, Identifiable, Equatable, Sendable {
     var id: String = ""
@@ -43,6 +44,21 @@ struct Lead: Codable, Identifiable, Equatable, Sendable {
 
     func toContact() -> Contact {
         Contact(name: name, company: company, email: email, phone: phone, notes: message)
+    }
+}
+
+extension BusinessCard {
+    /// Someone else's scanned card as a contact. Contacts have no website,
+    /// landline or LinkedIn field, so those go into the notes.
+    func toContact() -> Contact {
+        let mobileFirst = mobile.trimmed.isEmpty ? officePhone.trimmed : mobile.trimmed
+        var notes: [String] = []
+        if !mobile.trimmed.isEmpty, !officePhone.trimmed.isEmpty { notes.append("Office: \(officePhone.trimmed)") }
+        if !website.trimmed.isEmpty { notes.append("Website: \(website.trimmed)") }
+        if !linkedin.trimmed.isEmpty { notes.append("LinkedIn: \(linkedin.trimmed)") }
+        return Contact(name: fullName.trimmed, company: company.trimmed, position: jobTitle.trimmed,
+                       email: email.trimmed, phone: mobileFirst, whatsapp: whatsapp.trimmed,
+                       address: composedAddress, notes: notes.joined(separator: "\n"))
     }
 }
 

@@ -13,6 +13,7 @@ struct ContactsView: View {
     @State private var errorMessage: String?
     @State private var editingContact: Contact?
     @State private var showQRScanner = false
+    @State private var showCardScanner = false
 
     enum Section: String, CaseIterable, Identifiable {
         case contacts = "Contacts"
@@ -37,7 +38,12 @@ struct ContactsView: View {
             .navigationTitle("Contacts")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { showCardScanner = true } label: { Image(systemName: "camera.viewfinder") }
+                        .accessibilityLabel("Scan a business card")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showQRScanner = true } label: { Image(systemName: "qrcode.viewfinder") }
+                        .accessibilityLabel("Scan a QR code")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { editingContact = Contact() } label: { Image(systemName: "plus") }
@@ -54,7 +60,15 @@ struct ContactsView: View {
                     editingContact = scanned
                 }
             }
-            .task { await reload() }
+            .fullScreenCover(isPresented: $showCardScanner) {
+                ContactScanFlowView { created in
+                    contacts.insert(created, at: 0)
+                    section = .contacts
+                }
+            }
+            // Every visit, not just the first: a card scanned from the Cards
+            // tab lands here too.
+            .onAppear { Task { await reload() } }
             .refreshable { await reload() }
             .alert("Something went wrong", isPresented: errorBinding) {
                 Button("OK", role: .cancel) {}
@@ -79,7 +93,7 @@ struct ContactsView: View {
     private var contactsList: some View {
         if contacts.isEmpty {
             emptyState("person.crop.circle.badge.plus", "No contacts yet",
-                       "Scan a card's QR code or add a contact by hand.")
+                       "Scan someone's business card or QR code, or add a contact by hand.")
         } else {
             List {
                 ForEach(contacts) { contact in
@@ -229,8 +243,10 @@ struct ContactEditSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State var contact: Contact
-    let onSave: (Contact) async -> Void
+    /// A throw keeps the form up with the error, so nothing typed is lost.
+    let onSave: (Contact) async throws -> Void
     @State private var isSaving = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -266,13 +282,22 @@ struct ContactEditSheet: View {
                     Button("Save") {
                         isSaving = true
                         Task {
-                            await onSave(contact)
-                            dismiss()
+                            do {
+                                try await onSave(contact)
+                                dismiss()
+                            } catch {
+                                saveError = error.localizedDescription
+                                isSaving = false
+                            }
                         }
                     }
                     .disabled(contact.name.trimmed.isEmpty || isSaving)
                 }
             }
+            .alert("Couldn't save the contact", isPresented: Binding(
+                get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: { Text(saveError ?? "") }
         }
     }
 }

@@ -51,27 +51,34 @@ final class ScanViewModel {
             return
         }
         do {
-            let lines = try await OCRService.recognizeLines(in: cgImage)
-            var parsed = ContactParser.parse(lines: lines)
-            parsedWithAI = false
-            // Apple Intelligence pass: the on-device model reads the card as a
-            // whole and fixes what the line heuristics get wrong (person vs
-            // company name, address vs slogan). Best-effort — any failure
-            // just keeps the heuristic parse.
-            if #available(iOS 26.0, *), AIContactExtractor.isAvailable {
-                if let ai = try? await AIContactExtractor.extract(fromLines: lines) {
-                    parsed.refine(with: ai)
-                    parsedWithAI = true
-                }
-            }
-            parsed.decomposeAddressIfNeeded()
-            card = parsed
+            (card, parsedWithAI) = try await Self.read(cgImage)
             stage = .review
         } catch {
             errorMessage = "Text recognition failed. You can enter details manually."
             card = BusinessCard()
             stage = .review
         }
+    }
+
+    /// OCR a card image into its fields — shared by your own card and by
+    /// scanning someone else's into Contacts. Returns whether the Apple
+    /// Intelligence pass ran.
+    static func read(_ cgImage: CGImage) async throws -> (BusinessCard, Bool) {
+        let lines = try await OCRService.recognizeLines(in: cgImage)
+        var parsed = ContactParser.parse(lines: lines)
+        var usedAI = false
+        // Apple Intelligence pass: the on-device model reads the card as a
+        // whole and fixes what the line heuristics get wrong (person vs
+        // company name, address vs slogan). Best-effort — any failure
+        // just keeps the heuristic parse.
+        if #available(iOS 26.0, *), AIContactExtractor.isAvailable {
+            if let ai = try? await AIContactExtractor.extract(fromLines: lines) {
+                parsed.refine(with: ai)
+                usedAI = true
+            }
+        }
+        parsed.decomposeAddressIfNeeded()
+        return (parsed, usedAI)
     }
 
     /// Skip scanning and enter details by hand.

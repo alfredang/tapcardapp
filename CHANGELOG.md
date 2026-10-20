@@ -3,7 +3,14 @@
 All notable changes to Tapcard (iOS) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com).
 
-## [1.6.5] — 2026-10-21 · build 14
+## [1.6.5] — 2026-10-21 · build 15
+
+### Added
+- Scan other people's business cards into Contacts. The Cards tab's camera
+  button asks whose card it is: someone else's is read on-device (with Apple
+  Intelligence where available) and opens a pre-filled contact to check and
+  save, synced with the web CRM; yours still creates your digital card. The
+  Contacts tab has its own "Scan a business card" button next to the QR scan.
 
 ### Changed
 - Apple Intelligence banner and photo: Image Playground now opens with an empty
@@ -15,6 +22,10 @@ Format: [Keep a Changelog](https://keepachangelog.com).
   own button.
 - The WhatsApp row on the card uses the same tinted icon as the other rows
   instead of a green badge.
+
+### App Store
+- 2026-10-21: 1.6.5 (14) submitted, then pulled from review for build 15,
+  which adds scanning cards into Contacts.
 
 ## [1.6.4] — 2026-10-19 · build 13
 

@@ -21,6 +21,25 @@ final class TapcardFeatureTests: XCTestCase {
         capture(app, name: "Card and QR")
     }
     @MainActor
+    func testScanAsksWhoseCardAndOffersContacts() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TAPCARD_DEMO"] = "1"
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Jordan Avery"].firstMatch.waitForExistence(timeout:10))
+        app.buttons["Scan a business card"].firstMatch.tap()
+        let toContacts = app.buttons["Someone else's — save to Contacts"]
+        XCTAssertTrue(toContacts.waitForExistence(timeout:5))
+        XCTAssertTrue(app.buttons["Mine — create a digital card"].exists)
+        capture(app, name: "Whose card")
+        toContacts.tap()
+        // The simulator has no camera; the flow still opens the scanner.
+        XCTAssertTrue(app.staticTexts["Camera unavailable"].waitForExistence(timeout:5))
+        app.buttons["Close"].tap()
+        app.tabBars.buttons["Contacts"].tap()
+        XCTAssertTrue(app.navigationBars.buttons["Scan a business card"].waitForExistence(timeout:5))
+        XCTAssertTrue(app.navigationBars.buttons["Scan a QR code"].exists)
+    }
+    @MainActor
     func testSettingsDesignAndSharingPreferences() {
         let app = XCUIApplication()
         app.launchEnvironment["TAPCARD_DEMO"] = "1"
