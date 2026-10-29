@@ -3,7 +3,14 @@
 All notable changes to Tapcard (iOS) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com).
 
-## [Unreleased]
+## [1.6.6] — 2026-10-29 · build 16
+
+### Fixed
+- **WhatsApp QR now scans.** It encodes `wa.me/<number>` with a short intro
+  ("Hi Alfred, I scanned your Tapcard.") instead of the card page with `?wa=1`.
+  WhatsApp's own QR scanner rejected the card URL as not a WhatsApp code, and
+  the iPhone Camera left people in Safari because iOS won't open WhatsApp from
+  a scripted redirect. Both now open the chat directly.
 
 ### Added
 - Settings → About → **Privacy Policy** opens tapcard.tertiaryinfotech.com/privacy

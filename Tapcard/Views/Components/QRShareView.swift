@@ -4,12 +4,13 @@ import SwiftUI
 ///
 /// - **WhatsApp** — with your WhatsApp contact link on file (Settings →
 ///   Sharing), that link itself: the same code WhatsApp shows under QR code,
-///   so scanning adds you as a contact. Otherwise the card page with `?wa=1`,
-///   which opens a WhatsApp chat to the owner's international number with an
-///   intro message. Encoding `wa.me` directly would be one hop shorter, but a
-///   scanner without WhatsApp gets bounced to the App Store and loses the
-///   contact; routing through the card page means they always land on
-///   something useful.
+///   so scanning adds you as a contact. Otherwise `wa.me/<number>` with a
+///   short intro, which opens a chat with the owner's international number.
+///   It has to be `wa.me` itself: WhatsApp's own scanner rejects any other
+///   URL as "not a valid WhatsApp QR code", and the old route through the
+///   card page (`?wa=1`) left iPhone Camera users stranded in Safari, because
+///   iOS won't open an app from a scripted redirect. Kept short so the code
+///   stays easy to scan under the logo.
 /// - **LinkedIn** — the profile URL itself, so LinkedIn opens on Connect.
 /// - **Card link** — the public card.
 ///
@@ -31,9 +32,8 @@ struct CardQRTarget {
         let contactLink = preferences.whatsappQr.isEmpty ? nil : preferences.whatsappQr
         addsWhatsAppContact = mode == .whatsapp && contactLink != nil
         let details = card.details
-        whatsappNumber = details
-            .flatMap { WhatsAppLink.number(for: $0, countryCode: countryCode) }
-            .map { PhoneNumber.display(digits: $0, countryCode: countryCode) }
+        let digits = details.flatMap { WhatsAppLink.number(for: $0, countryCode: countryCode) }
+        whatsappNumber = digits.map { PhoneNumber.display(digits: $0, countryCode: countryCode) }
         switch mode {
         case .linkedin:
             url = details.flatMap(WhatsAppLink.linkedInURL(for:))
@@ -41,17 +41,30 @@ struct CardQRTarget {
             if let contactLink {
                 url = contactLink
             } else {
-                url = whatsappNumber == nil ? nil : Self.cardURL(card.url, whatsapp: true)
+                url = digits.map { Self.chatURL(digits: $0, name: details?.fullName ?? card.fullName) }
             }
         case .card:
-            url = Self.cardURL(card.url, whatsapp: false)
+            url = Self.cardURL(card.url)
         }
     }
 
-    private static func cardURL(_ base: String, whatsapp: Bool) -> String {
+    /// "https://wa.me/6596983731?text=Hi%20Alfred%2C%20I%20scanned%20your%20Tapcard."
+    /// Same as the web's share panel (src/lib/whatsapp.ts → whatsappChatQr).
+    static func chatURL(digits: String, name: String) -> String {
+        let honorifics: Set<String> = ["dr", "mr", "mrs", "ms", "mdm", "miss", "prof", "er", "ir"]
+        let first = name.trimmed.split(separator: " ").map(String.init)
+            .first { !honorifics.contains($0.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))) } ?? ""
+        let intro = first.isEmpty ? "Hi, I scanned your Tapcard." : "Hi \(first), I scanned your Tapcard."
+        let text = intro.addingPercentEncoding(withAllowedCharacters: Self.unreserved) ?? ""
+        return "https://wa.me/\(digits)?text=\(text)"
+    }
+
+    private static let unreserved = CharacterSet(charactersIn:
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+
+    private static func cardURL(_ base: String) -> String {
         var components = URLComponents(string: base)
         var items = (components?.queryItems ?? []).filter { $0.name != "wa" && $0.name != "src" }
-        if whatsapp { items.append(URLQueryItem(name: "wa", value: "1")) }
         items.append(URLQueryItem(name: "src", value: "qr"))
         components?.queryItems = items
         return components?.url?.absoluteString ?? base

@@ -2,8 +2,7 @@ import Foundation
 
 /// Phone- and profile-link helpers for a card's QR code and vCard.
 ///
-/// The QR itself points at the card page (`?wa=1`), which performs the
-/// WhatsApp hand-off — see `CardQRTarget`. What lives here is the shared
+/// The QR itself is a `wa.me` link — see `CardQRTarget`. What lives here is the shared
 /// question of *whether* a card can be reached on WhatsApp at all, plus the
 /// LinkedIn URL normalisation used by the vCard and the photo importer.
 enum WhatsAppLink {

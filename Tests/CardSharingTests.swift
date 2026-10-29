@@ -44,13 +44,16 @@ final class CardSharingTests: XCTestCase {
             XCTAssertNil(WhatsAppLink.linkedInURL(for: card), input)
         }
     }
-    func testWhatsAppQRPreservesExistingQueryAndSeparateLinkedInTarget() {
-        var details = BusinessCard(); details.mobile = "+65 9123 4567"; details.linkedin = "jordanavery"
+    /// The reported bug: the QR pointed at the card page (?wa=1), which
+    /// WhatsApp's own scanner rejects and iPhone Camera leaves in Safari. It
+    /// must be wa.me itself.
+    func testWhatsAppQRIsAWaMeChatLinkAndSeparateLinkedInTarget() {
+        var details = BusinessCard(); details.fullName = "Dr. Jordan Avery"; details.mobile = "9123 4567"; details.linkedin = "jordanavery"
         let card = SavedCard(id:"1", fullName:"Jordan", company:"", slug:"jordan", url:"https://tapcard.example/c/jordan?ref=mobile", createdAt:Date(), details:details)
         let whatsapp = CardQRTarget(card:card, mode:.whatsapp, preferences: prefs("65"))
+        XCTAssertEqual(whatsapp.url, "https://wa.me/6591234567?text=Hi%20Jordan%2C%20I%20scanned%20your%20Tapcard.")
         let items = URLComponents(string:whatsapp.url!)!.queryItems!
-        XCTAssertTrue(items.contains(URLQueryItem(name:"ref",value:"mobile")))
-        XCTAssertTrue(items.contains(URLQueryItem(name:"wa",value:"1")))
+        XCTAssertEqual(items, [URLQueryItem(name:"text", value:"Hi Jordan, I scanned your Tapcard.")])
         XCTAssertEqual(whatsapp.whatsappNumber, "+65 9123 4567")
         let linkedin = CardQRTarget(card:card, mode:.linkedin, preferences: prefs("65"))
         XCTAssertEqual(linkedin.url,"https://www.linkedin.com/in/jordanavery")
@@ -116,11 +119,11 @@ final class CardSharingTests: XCTestCase {
         XCTAssertFalse(card2.addsWhatsAppContact)
     }
     /// The WhatsApp mark over the centre must not cost a scan — for the short
-    /// contact link and the longer card hand-off alike.
+    /// contact link and the longer wa.me chat link alike.
     @MainActor
     func testBrandedWhatsAppQRStillDecodes() throws {
         let payloads = ["https://wa.me/qr/K3JX5Q7ZLMUKA1",
-                        "https://tapcard.tertiaryinfotech.com/c/dr-alfred-ang-rlbg?wa=1&src=qr"]
+                        "https://wa.me/6596983731?text=Hi%20Alfred%2C%20I%20scanned%20your%20Tapcard."]
         let images = try payloads.map {
             try XCTUnwrap(QRCodeImage.shareImage(payload: $0, mode: .whatsapp)?.cgImage)
         }
